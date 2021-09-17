@@ -5,31 +5,31 @@
 About:
     This is the main entry for spacesaver.
 USAGE:
-	$ spacesaver <list|optimize> [OPTIONS]
+	$ spacesaver <ls|df|ln|optimize> [OPTIONS]
 Example:
     $ spacesaver ls -h
     $ spacesaver df -h
+    $ spacesaver ln -h
     $ spacesaver optimize -h
 """
 
 # Python standard library
 from __future__ import print_function
 from genericpath import isdir
-from subprocess import CalledProcessError
-import sys, os, subprocess, textwrap
+import sys, os, textwrap
 
 # 3rd party imports from pypi
 import argparse  # potential python3 3rd party package, added in python/3.5
 
-# Local imports
+# Local imports  
 from src.shells import bash
+from src.commands import _ls
 from src.utils import (initialize,
     err,
     exists,
     fatal,
     permissions,
     require)
-
 
 __version__ = 'v1.0.0'
 
@@ -39,8 +39,18 @@ def ls(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
+    # Column names of file listing
+    header = ['Inode', 'Permissions', 'Owner', 'Group', 'Bytes', 
+            'Size', 'MDate', 'File']
+    
+    # Add column name for MD5 calculation 
+    if sub_args.md5: header.append('MD5')
+    print('\t'.join(header))
 
-    return sub_args
+    for path in sub_args.DIRECTORY:
+        _ls(path, sub_args.md5)
+    
+    return
 
 
 def df(sub_args):
@@ -48,7 +58,6 @@ def df(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
-
     return sub_args
 
 
@@ -64,7 +73,7 @@ def parsed_arguments():
     """
 
     # Create a top-level parser
-    parser = argparse.ArgumentParser(description = 'Spacesaver: optimize disk space usage')
+    parser = argparse.ArgumentParser(description = 'optimize your disk space utilization')
 
     # Adding Verison information
     parser.add_argument('--version', action = 'version', version='%(prog)s {}'.format(__version__))
@@ -200,10 +209,6 @@ def parsed_arguments():
 
 
 def main():
-
-    # Display version information
-    if '--version' not in sys.argv:
-        print('Spacesaver ({})\n'.format(__version__))
 
     # Collect args for sub-command
     args = parsed_arguments()
