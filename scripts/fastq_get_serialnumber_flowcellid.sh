@@ -6,6 +6,11 @@
 # 2. serial number of sequencer
 # 3. flowcellid
 # 4. sequenced at SF? Y or N
+# Example:
+# bash /data/kopardevn/GitRepos/spacesavers/scripts/fastq_get_serialnumber_flowcellid.sh /gpfs/gsfs4/users/CCBR/projects/ccbr709/kopardevn_analysis/ccbr709/dummy_chipseq_180731/trim/CB45_KO_0.R2.trim.fastq.gz
+# gives:
+# /gpfs/gsfs4/users/CCBR/projects/ccbr709/kopardevn_analysis/ccbr709/dummy_chipseq_180731/trim/CB45_KO_0.R2.trim.fastq.gz	D00761	C8H23ANXX	Y
+
 
 
 function usage {
