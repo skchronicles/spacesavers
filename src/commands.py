@@ -13,7 +13,8 @@ from shells import bash
 
 
 def normalized(path):
-    """Normalizes a given path on the filesystem.
+    """Normalizes a given path on the filesystem. Symlinks will be
+    dereferenced along with path aliases like "~". 
     @param path <str>:
         Path on the file sytem
     @return npath <str>:
@@ -106,21 +107,18 @@ def name(uid, uid_type, uid_records):
     return name 
 
 
-def _ls(path, md5=False):
-    """Private function for spacesavers ls() which recursively lists
-    information about files and directories for a given path.
+def traversed(path, skip_links = True):
+    """Generator to recursively traverse a given directory structure and yields the 
+    absolute path + file name of each file encountered. By default, sym links are 
+    skipped over. 
     @param path <str>:
         Path to recusively list directory contents
-    @param md5 <bool>:
-        Report MD5 of potential duplicates
+    @param skip_links <bool>:
+        Skips over sym-linked files when True 
     """
-    # Normalize path
+    # Normalize path, coverts to absolute path and 
+    # dereferences path alias (like "~" -> "/home") 
     path = normalized(path)
-
-    # Keeps track of previously converte user/group
-    # ids to avoid redundant lookups in the unix 
-    # user/group database. 
-    users = {}
 
     # Recursively descend the directory tree
     # and list information about its files
@@ -128,34 +126,60 @@ def _ls(path, md5=False):
         for f in files:
             # Get absolute referece to file  
             file = os.path.join(pdir, f)
-            # Use os.stat() in the standard library to
-            # get detailed information about the file: 
-            # https://docs.python.org/3/library/stat.html
-            # Results are similar to the unix cmd stat
-            try:
-                stat_res = os.stat(file)
-            except Exception as e:
-                # Possible errors inlcude 
-                err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
-                continue   # goto next file
+            # Check whether to skip over symlinks
+            if skip_links and os.path.islink(file):
+                continue  # Skip over symlink
 
-            # Get the file's permissions, inode reference, 
-            # owner and group name, modified timestamp, and 
-            # size of the file in bytes and a human readable
-            # format.
-            mode = stat_res.st_mode
-            permissions = stat.filemode(mode)
-            inode = stat_res.st_ino
-            owner = name(stat_res.st_uid, 'user', users)
-            group = name(stat_res.st_gid, 'group', users)
-            mdate = datetime.datetime.fromtimestamp(stat_res.st_mtime).strftime('%Y-%m-%d-%H:%M')
-            bsize = stat_res.st_size
-            hsize = readable_size(bsize)
-            # Format results before printing to standard 
-            # output and convert all values to strings 
-            info = [inode, permissions, owner, group, bsize, hsize, mdate, file]
-            info = [str(val) for val in info]
-            print('{}'.format('\t'.join(info)))
+            yield file
+
+
+def _ls(path, md5=False):
+    """Private function for spacesavers ls() which recursively lists
+    information about files and directories for a given path. Any symbolic links
+    to files are skipped over when listing files.
+    @param path <str>:
+        Path to recusively list directory contents
+    @param md5 <bool>:
+        Report MD5 of potential duplicates
+    """
+
+    # Keeps track of previously converte user/group
+    # ids to avoid redundant lookups in the unix 
+    # user/group database. 
+    users = {}
+
+    # Recursively descend the directory tree
+    # and list information about its files,
+    # symbolic links are skipped over here.
+    for file in traversed(path):
+        # Use os.stat() in the standard library to
+        # get detailed information about the file: 
+        # https://docs.python.org/3/library/stat.html
+        # Results are similar to the unix cmd stat
+        try:
+            stat_res = os.stat(file)
+        except Exception as e:
+            # Possible errors inlcude 
+            err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
+            continue   # goto next file
+
+        # Get the file's permissions, inode reference, 
+        # owner and group name, modified timestamp, and 
+        # size of the file in bytes and a human readable
+        # format.
+        mode = stat_res.st_mode
+        permissions = stat.filemode(mode)
+        inode = stat_res.st_ino
+        owner = name(stat_res.st_uid, 'user', users)
+        group = name(stat_res.st_gid, 'group', users)
+        mdate = datetime.datetime.fromtimestamp(stat_res.st_mtime).strftime('%Y-%m-%d-%H:%M')
+        bsize = stat_res.st_size
+        hsize = readable_size(bsize)
+        # Format results before printing to standard 
+        # output and convert all values to strings 
+        info = [inode, permissions, owner, group, bsize, hsize, mdate, file]
+        info = [str(val) for val in info]
+        print('{}'.format('\t'.join(info)))
 
     return
 
