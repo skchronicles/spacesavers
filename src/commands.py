@@ -8,7 +8,7 @@ from pwd import getpwuid  # convert uid to user name
 from grp import getgrgid  # convert gid to group name  
 
 # Local imports
-from utils import fatal, err
+from utils import fatal, err, md5sum
 from shells import bash
 
 
@@ -107,6 +107,49 @@ def name(uid, uid_type, uid_records):
     return name 
 
 
+def file_stats(file, users):
+    """Gets detailed information about a file using os.stat(). Returns a list containing
+    a file's inode, permissions, owner, group, bytes_size, human_readable_size, 
+    modification_date.
+    @param file <str>:
+        Name of file to get detailed information
+    @params users <dict>:
+        Lookup of previously encountered uid/gid.
+    @returns info <list>:
+        List containing detailed information about a file:
+            0=inode, 1=permissions, 3=owner, 4=group, 5=bsize, 6=hsize, 7=mdate
+    """
+    # Use os.stat() in the standard library to
+    # get detailed information about the file: 
+    # https://docs.python.org/3/library/stat.html
+    # Results are similar to the unix cmd stat
+    try:
+        stat_res = os.stat(file)
+    except Exception as e:
+        # Possible errors include permissions
+        # issues or non-existent file 
+        err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
+        return []   # cannot get stats
+    # Get the file's permissions, inode reference, 
+    # owner and group name, modified timestamp, and 
+    # size of the file in bytes and a human readable
+    # format.
+    mode = stat_res.st_mode
+    permissions = stat.filemode(mode)
+    inode = stat_res.st_ino
+    owner = name(stat_res.st_uid, 'user', users)
+    group = name(stat_res.st_gid, 'group', users)
+    mdate = datetime.datetime.fromtimestamp(stat_res.st_mtime).strftime('%Y-%m-%d-%H:%M')
+    bsize = stat_res.st_size
+    hsize = readable_size(bsize)
+    # Format results before printing to standard 
+    # output and convert all values to strings 
+    info = [inode, permissions, owner, group, bsize, hsize, mdate]
+    info = [str(val) for val in info]
+
+    return info
+
+
 def traversed(path, skip_links = True):
     """Generator to recursively traverse a given directory structure and yields the 
     absolute path + file name of each file encountered. By default, sym links are 
@@ -145,41 +188,109 @@ def _ls(path, md5=False):
 
     # Keeps track of previously converte user/group
     # ids to avoid redundant lookups in the unix 
-    # user/group database. 
-    users = {}
+    # user/group database, size and 64 KiB hashes 
+    # of encountered files to reduce search space
+    # of required MD5 calculations.
+    users = {}   # {uid: user_name, gid: group_name, ...}
+    sizes  = {}  # {size_bytes: ['/path/f1.txt', '/path/f2.txt'], ...}
+    mini_hashes = {}  # {(hash64KiB, size_bytes): ['/path/f1.txt', '/path/f2.txt'], ...}
+    full_hashes = {}  # {(hashFile, size_bytes): ['/path/f1.txt', '/path/f2.txt'], ...}
+
 
     # Recursively descend the directory tree
     # and list information about its files,
     # symbolic links are skipped over here.
     for file in traversed(path):
-        # Use os.stat() in the standard library to
-        # get detailed information about the file: 
-        # https://docs.python.org/3/library/stat.html
-        # Results are similar to the unix cmd stat
+        # Find files that have the same size.
+        # Duplicate files will always have the 
+        # same size and candidates more checks
+        # like a partial mini-hash of the file 
+        # (first 64KiB MD5) AND calculating an 
+        # MD5 of the entire file.
         try:
-            stat_res = os.stat(file)
+            filesize = os.path.getsize(file)
+            if filesize not in sizes: 
+                sizes[filesize] = []
+            sizes[filesize].append(file)
         except Exception as e:
-            # Possible errors inlcude 
+            # Possible errors include permissions
+            # issues or non-existent file
             err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
             continue   # goto next file
 
-        # Get the file's permissions, inode reference, 
-        # owner and group name, modified timestamp, and 
-        # size of the file in bytes and a human readable
-        # format.
-        mode = stat_res.st_mode
-        permissions = stat.filemode(mode)
-        inode = stat_res.st_ino
-        owner = name(stat_res.st_uid, 'user', users)
-        group = name(stat_res.st_gid, 'group', users)
-        mdate = datetime.datetime.fromtimestamp(stat_res.st_mtime).strftime('%Y-%m-%d-%H:%M')
-        bsize = stat_res.st_size
-        hsize = readable_size(bsize)
-        # Format results before printing to standard 
-        # output and convert all values to strings 
-        info = [inode, permissions, owner, group, bsize, hsize, mdate, file]
-        info = [str(val) for val in info]
-        print('{}'.format('\t'.join(info)))
+    # Calculate a mini hash for files with 
+    # the same filesize. These are candidate
+    # dups that can be filtered filter. The mini 
+    # hash is calcualted from the first 64 KiB
+    # of the file.
+    for size, files in sizes.items():
+        if len(files) < 2:
+            # Skip over mini hash calcualation 
+            # the file size is unique, so it 
+            # is NOT a candidate dup file.
+            file = files[0]
+            file_info = file_stats(file, users)
+            if not file_info: continue   # cannot get info on file
+            file_info.extend([file, '']) # empty string for duplicates
+            print("\t".join(file_info))
+            continue                    # goto the next file
+
+        for file in files:
+            try:
+                # Calculate a mini hash of the first
+                # 64 KiB chunk/block of the file. Files
+                # with the same mini hash will be candidates
+                # for an MD5 checksum of the entire file.
+                mini_hash = md5sum(file, first_block_only = True)
+                if (mini_hash, size) not in mini_hashes:
+                    mini_hashes[(mini_hash, size)] = []
+                mini_hashes[(mini_hash, size)].append(file)
+            except Exception as e:
+                # Possible errors include permissions
+                # issues or non-existent file
+                err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
+                continue   # goto next file
+    
+    # Calculate a full hash for files with 
+    # the same mini hash. These are the final 
+    # candidates for duplication.
+    for hash_tuple, files in mini_hashes.items():
+        if len(files) < 2:
+            # Skip over full hash calcualation 
+            # the mini hash is unique, so it 
+            # is NOT a candidate dup file.
+            file = files[0]
+            file_info = file_stats(file, users)
+            if not file_info: continue   # cannot get info on file
+            file_info.extend([file, '']) # empty string for duplicates
+            print("\t".join(file_info))
+            continue                    # goto the next file
+
+        size = hash_tuple[1]
+        for file in files:
+            try:
+                # Calculate a full hash for files with 
+                # the same mini hash.
+                full_hash = md5sum(file)
+                if (full_hash, size) not in full_hashes:
+                    full_hashes[(full_hash, size)] = []
+                full_hashes[(full_hash, size)].append(file)
+            except Exception as e:
+                # Possible errors include permissions
+                # issues or non-existent file
+                err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
+                continue   # goto next file
+
+    # TODO: Refactor this later and add a check for hard links
+    # Final link in chain of responsibilty.  
+    # Display information for duplicate files.
+    for hash_tuple, files in full_hashes.items():
+            file = files[0]
+            duplicates = "|".join(files[1:])
+            file_info = file_stats(file, users)
+            if not file_info: continue   # cannot get info on file
+            file_info.extend([file, duplicates]) # empty string for duplicates
+            print("\t".join(file_info))
 
     return
 
