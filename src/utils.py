@@ -4,7 +4,38 @@
 # Python standard library
 from __future__ import print_function
 from shutil import copytree
-import os, sys
+import os, sys, hashlib
+
+
+def md5sum(filename, first_block_only = False, blocksize = 65536):
+    """Gets md5checksum of a file in memory-safe manner.
+    The file is read in blocks/chunks defined by the blocksize parameter. This is 
+    a safer option to reading the entire file into memory if the file is very large.
+    @param filename <str>:
+        Input file on local filesystem to find md5 checksum
+    @param first_block_only <bool>:
+        Calculate md5 checksum of the first block/chunk only
+    @param blocksize <int>:
+        Blocksize of reading N chunks of data to reduce memory profile
+    @return hasher.hexdigest() <str>:
+        MD5 checksum of the file's contents
+    """
+    hasher = hashlib.md5()
+    with open(filename, 'rb') as fh:
+        buf = fh.read(blocksize)
+        if first_block_only:
+            # Calculate MD5 of first block or chunck of file.
+            # This is a useful heuristic for when potentially 
+            # calculating an MD5 checksum of thousand or 
+            # millions of file.
+            hasher.update(buf)
+            return hasher.hexdigest()
+        while len(buf) > 0:
+            # Calculate MD5 checksum of entire file
+            hasher.update(buf)
+            buf = fh.read(blocksize)
+
+    return hasher.hexdigest()
 
 
 def permissions(parser, filename, *args, **kwargs):
@@ -174,5 +205,9 @@ def safe_copy(source, target, resources = []):
 
 
 if __name__ == '__main__':
-    # Add tests later
-    pass
+    # Calculate MD5 checksum of entire file 
+    print('{}  {}'.format(md5sum(sys.argv[0]), sys.argv[0]))
+    # Calcualte MD5 cehcksum of 512 byte chunck of file,
+    # which is similar to following unix command: 
+    # dd if=utils.py bs=512 count=1 2>/dev/null | md5sum 
+    print('{}  {}'.format(md5sum(sys.argv[0], first_block_only = True, blocksize = 512), sys.argv[0]))
