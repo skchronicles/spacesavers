@@ -150,6 +150,33 @@ def file_stats(file, users):
     return info
 
 
+def dereferenced(files):
+    """Filters a list of files with multiple references
+    to the same inode. A list of files with multiple
+    hardlinks will be filtered so only one reference 
+    to an inode will be preserved.
+    @params files <list>:
+        A list of files to filter for hardlinks
+    @returns unique_files <list>:
+        A filterfed list of files where only one 
+        reference to an inode is preserved
+    """
+    # Set to keep track of hard links
+    # {inodeX, inodeY, inodeZ, ...}
+    inodes = set()
+    unique_files = []
+
+    for file in files:
+        inode = os.stat(file).st_ino
+        if inode not in inodes:
+            # First occurence of inode, preserve
+            # only one reference to a file
+            inodes.add(inode) 
+            unique_files.append(file)
+
+    return unique_files
+
+
 def traversed(path, skip_links = True):
     """Generator to recursively traverse a given directory structure and yields the 
     absolute path + file name of each file encountered. By default, sym links are 
@@ -185,6 +212,8 @@ def _ls(path, md5=False):
     @param md5 <bool>:
         Report MD5 of potential duplicates
     """
+    # TODO: Refactor this later, rewrite as a class 
+    # using the chain of responsibility design pattern
 
     # Keeps track of previously converte user/group
     # ids to avoid redundant lookups in the unix 
@@ -220,10 +249,14 @@ def _ls(path, md5=False):
 
     # Calculate a mini hash for files with 
     # the same filesize. These are candidate
-    # dups that can be filtered filter. The mini 
+    # dups that can be further filtered. The mini 
     # hash is calcualted from the first 64 KiB
     # of the file.
     for size, files in sizes.items():
+        # Filter files with multiple references 
+        # to the same inode, i.e. multiple hardlinks.
+        # Keeps only one reference to a set of hardlinks.
+        files = dereferenced(files)
         if len(files) < 2:
             # Skip over mini hash calcualation 
             # the file size is unique, so it 
@@ -231,7 +264,7 @@ def _ls(path, md5=False):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '']) # empty string for duplicates
+            file_info.extend([file, '0', '']) # empty string for duplicates
             print("\t".join(file_info))
             continue                    # goto the next file
 
@@ -262,7 +295,7 @@ def _ls(path, md5=False):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '']) # empty string for duplicates
+            file_info.extend([file, '0', '']) # empty string for duplicates
             print("\t".join(file_info))
             continue                    # goto the next file
 
@@ -270,7 +303,7 @@ def _ls(path, md5=False):
         for file in files:
             try:
                 # Calculate a full hash for files with 
-                # the same mini hash.
+                # the same mini hash.             
                 full_hash = md5sum(file)
                 if (full_hash, size) not in full_hashes:
                     full_hashes[(full_hash, size)] = []
@@ -281,16 +314,19 @@ def _ls(path, md5=False):
                 err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(file, e))
                 continue   # goto next file
 
-    # TODO: Refactor this later and add a check for hard links
     # Final link in chain of responsibilty.  
     # Display information for duplicate files.
     for hash_tuple, files in full_hashes.items():
-            file = files[0]
-            duplicates = "|".join(files[1:])
-            file_info = file_stats(file, users)
-            if not file_info: continue   # cannot get info on file
-            file_info.extend([file, duplicates]) # empty string for duplicates
-            print("\t".join(file_info))
+        # Find the oldest file to represent the master copy
+        # of all the duplicates, sort files from oldest to newest.
+        files = sorted(files, key=lambda t: os.stat(t).st_mtime)
+        file = files[0]
+        ndups = len(files[1:])
+        duplicates = "|".join(files[1:])
+        file_info = file_stats(file, users)
+        if not file_info: continue   # cannot get info on file
+        file_info.extend([file, str(ndups), duplicates]) # empty string for duplicates
+        print("\t".join(file_info))
 
     return
 

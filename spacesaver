@@ -41,7 +41,7 @@ def ls(sub_args):
     """
     # Column names of file listing
     header = ['Inode', 'Permissions', 'Owner', 'Group', 'Bytes', 
-            'Size', 'MDate', 'File', 'Duplicates']
+            'Size', 'MDate', 'File', 'NDuplicates', 'Duplicates']
     
     # Add column name for MD5 calculation 
     if sub_args.md5: header.append('MD5')
