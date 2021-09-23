@@ -204,9 +204,11 @@ def traversed(path, skip_links = True):
 
 
 def _ls(path, md5=False):
-    """Private function for spacesavers ls() which recursively lists
-    information about files and directories for a given path. Any symbolic links
-    to files are skipped over when listing files.
+    """Generator for spacesavers ls() which recursively lists
+    information about files and directories for a given path. 
+    Any symbolic links or multiple references to the same inode, 
+    i.e. hard links (only one inode reference is preserved), 
+    are skipped over when listing files.
     @param path <str>:
         Path to recusively list directory contents
     @param md5 <bool>:
@@ -264,8 +266,8 @@ def _ls(path, md5=False):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '0', '']) # empty string for duplicates
-            print("\t".join(file_info))
+            file_info.extend([file, '0', '', '']) # empty string for duplicates
+            yield file_info
             continue                    # goto the next file
 
         for file in files:
@@ -295,8 +297,8 @@ def _ls(path, md5=False):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '0', '']) # empty string for duplicates
-            print("\t".join(file_info))
+            file_info.extend([file, '0', '', '']) # empty string for duplicates
+            yield file_info
             continue                    # goto the next file
 
         size = hash_tuple[1]
@@ -317,18 +319,24 @@ def _ls(path, md5=False):
     # Final link in chain of responsibilty.  
     # Display information for duplicate files.
     for hash_tuple, files in full_hashes.items():
-        # Find the oldest file to represent the master copy
-        # of all the duplicates, sort files from oldest to newest.
-        files = sorted(files, key=lambda t: os.stat(t).st_mtime)
+        try:
+            # Find the oldest file to represent the master copy
+            # of all the duplicates, sort files from oldest to newest.
+            files = sorted(files, key=lambda t: os.stat(t).st_mtime)
+            # Get a list of the duplicate file owners
+            owners = "|".join([name(os.stat(f).st_uid, 'user', users) for f in files[1:]])
+        except Exception as e:
+            # Possible errors include permissions
+            # issues or non-existent file
+            err('WARNING: Failed to get info on "{}" due to "{}" error!'.format(files, e))
+            continue   # goto next file
         file = files[0]
         ndups = len(files[1:])
         duplicates = "|".join(files[1:])
         file_info = file_stats(file, users)
         if not file_info: continue   # cannot get info on file
-        file_info.extend([file, str(ndups), duplicates]) # empty string for duplicates
-        print("\t".join(file_info))
-
-    return
+        file_info.extend([file, str(ndups), owners, duplicates])
+        yield file_info
 
 
 if __name__ == '__main__':
