@@ -203,16 +203,17 @@ def traversed(path, skip_links = True):
             yield file
 
 
-def _ls(path, md5=False):
-    """Generator for spacesavers ls() which recursively lists
+def _ls(path):
+    """Generator for spacesavers ls which recursively lists
     information about files and directories for a given path. 
     Any symbolic links or multiple references to the same inode, 
     i.e. hard links (only one inode reference is preserved), 
     are skipped over when listing files.
     @param path <str>:
         Path to recusively list directory contents
-    @param md5 <bool>:
-        Report MD5 of potential duplicates
+    @yields file_info <list>:
+        0=inode, 1=permissions, 2=owner, 3=group, 4=bytes, 5=size, 
+        6=mdate, 7=file, 8=nduplicates, 9=downers, 10=duplicates
     """
     # TODO: Refactor this later, rewrite as a class 
     # using the chain of responsibility design pattern
@@ -337,6 +338,54 @@ def _ls(path, md5=False):
         if not file_info: continue   # cannot get info on file
         file_info.extend([file, str(ndups), owners, duplicates])
         yield file_info
+
+
+def _df(handler, path, split=False):
+    """Generator for spacesavers df which recursively lists
+    information about files and directories for a given path. 
+    Any symbolic links or multiple references to the same inode, 
+    i.e. hard links (only one inode reference is preserved), 
+    are skipped over when listing files.
+    @param handler <iter>:
+        A iterable object containing the out from the ls command,
+        _ls returns a generator yielding lists of information; however,
+        standard input is recieved as raw text, the split option should
+        be set to True when using with standard input
+    @param path <str>:
+        Path to recusively list directory contents
+    @param split <bool>:
+        Split iterable contents into a list, set True with standard input
+    @yields df_info <list>:
+        0=mount, 1=duplicated, 2=available, 3=%duplicated, 4=score
+    """
+    duplicated = 0
+    available = 0
+    score = 0.0
+    # Calculate an age weighted score duplication score
+    # where scorePerFile = age * duplicatedBytes
+    # and Score = sum(scoreDupsFiles) / sum(scoreAllFiles)  
+    scoreDups, scoreAll = 0.0, 0.0
+    for file_listing in handler:
+        if split:
+            # Needed when standard input provided
+            file_listing = file_listing.strip().split('\t')
+        mount = path
+        # Caculate size of duplicated diskspace and total diskspace
+        filesize = int(file_listing[4])  # size of file in bytes
+        ncopies  = int(file_listing[8])  # number of redundant copies
+        duplicated += filesize * ncopies
+        available += filesize * (ncopies + 1)
+        mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
+        age = datetime.datetime.today() - mtime
+        age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days 
+        scoreAll += available * age
+        if ncopies >= 1:
+            scoreDups += available * age
+        
+    percent_duplicates = "{}%".format(round((duplicated/ float(available)) * 100, 3))
+    score = str(100 - int(scoreDups / scoreAll) * 100) 
+
+    yield [mount, readable_size(duplicated), readable_size(available), percent_duplicates]
 
 
 if __name__ == '__main__':

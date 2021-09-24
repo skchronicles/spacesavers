@@ -23,7 +23,7 @@ import argparse  # potential python3 3rd party package, added in python/3.5
 
 # Local imports  
 from src.shells import bash
-from src.commands import _ls
+from src.commands import _ls, _df
 from src.utils import (initialize,
     err,
     exists,
@@ -43,12 +43,10 @@ def ls(sub_args):
     header = ['Inode', 'Permissions', 'Owner', 'Group', 'Bytes', 
             'Size', 'MDate', 'File', 'NDuplicates', 'DOwners', 'Duplicates']
     
-    # Add column name for MD5 calculation 
-    if sub_args.md5: header.append('MD5')
+    # Display information about duplicate files
     print('\t'.join(header))
-
     for path in sub_args.DIRECTORY:
-        for file_listing in _ls(path, sub_args.md5):
+        for file_listing in _ls(path):
             print('\t'.join(file_listing))
 
     return
@@ -59,7 +57,25 @@ def df(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
-    return sub_args
+    # Column names of file listing
+    header = ['Mount', 'Duplicated', 'Available', '%Duplicated']
+    print('\t'.join(header))
+
+    # Check for standard input 
+    if not sys.stdin.isatty():
+        header = next(sys.stdin)
+        # Read from standard input
+        for df_listing in _df(sys.stdin, sub_args.DIRECTORY[0], True):
+            print('\t'.join(df_listing))
+            return
+
+    # Display information about duplicate files
+    for path in sub_args.DIRECTORY:
+        if path:
+            for df_listing in _df(_ls(path), path):
+                print('\t'.join(df_listing))
+    
+    return
 
 
 def parsed_arguments():
@@ -89,20 +105,28 @@ def parsed_arguments():
     # options that are required! Please note: if a required arg is added the
     # description below should be updated (i.e. update usage and add new option)
     required_ls_options = textwrap.dedent("""\
-        usage: spacesaver ls [-h] [-m] \\
-                             DIRECTORY [DIRECTORY ...]
+        usage: 
+          spacesaver ls [-h] DIRECTORY [DIRECTORY ...]
 
-        List directory contents of one or more directories. 
-        Recusively lists information about the files and 
-        directories in a set of given paths.
+          List the contents of one or more directories to
+        find duplicate files. Recusively lists information
+        about the files and directories in a set of given
+        paths.
         
-        By default, potential duplicates will be reported 
-        based on matching file sizes. The -m option can be
-        provided to calculate an md5 checksum for any
-        potential duplicates. Please note that symlinks 
-        and hardlinks will NOT be reported as a potential 
-        duplicates as these files do not take up any 
-        appreciable diskspace.
+          To reduce overall strain on the file system and
+        runtime, a set of heuristics are used to filter a list
+        of candidate duplicates prior to running computionally
+        expensive steps. And as so, before calculating an MD5
+        checksum of the entire file, potential duplicates are
+        identifed by matching their file sizes and the checksum
+        of the file's first 64 KiB chunk.
+
+          Please note that this sub command may take a while
+        to process depending on the shear number or the size
+        of files existing in a given subtree. Also symlinks or 
+        multiple occurences of hardlinks will be skipped over
+        as these files do not take up any appreciable disk 
+        space.
 
         """)
 
@@ -132,13 +156,6 @@ def parsed_arguments():
         nargs = '+',
         help = argparse.SUPPRESS
     )
-    
-    # Optional arguments
-    subparser_ls.add_argument('-m', '--md5',
-                                action = 'store_true',
-                                required = False,
-                                default = False,
-                                help = 'calculates MD5s for potential duplicates')
 
     # Options for the "df" sub-command
     # Grouped sub-parser arguments are currently not supported by argparse.
@@ -147,30 +164,37 @@ def parsed_arguments():
     # options that are required! Please note: if a required arg is added the
     # description below should be updated (i.e. update usage and add new option)
     required_df_options = textwrap.dedent("""\
-        usage: spacesaver df [-h] \\
-                             DIRECTORY [DIRECTORY ...]
+        usage: 
+          spacesaver df [-h] DIRECTORY [DIRECTORY ...]
 
-        Reports disk space usage for one or more directories. 
-        A duplication rate or score is calculated for each
-        provided path to assess the amount of redudant data
-        in a given location. 
+          Reports duplicated disk space usage for one or
+        more directories. A duplication rate or score is
+        calculated for each of the provided paths to assess
+        the amount of redudant data in a given location. 
         
-        Please note that this sub command may take a while to
-        process depending on the number/size of files existing
-        in a given subtree. To assess the number/size of files
-        that exist in a provided directory, you can run the 
-        'spacesaver ls' sub command. 
+          Please note that this sub command may take a while
+        to process depending on the shear number or the size
+        of files existing in a given subtree. To assess the 
+        number or size of files that exist in a provided
+        directory, please run the 'spacesaver ls' prior to
+        running 'spacesaver df'.
         
-        For more information about the 'ls' sub command, please
-        reference its usage section: 'spacesaver ls -h'.
+          The 'spacesaver df' sub command also recognizes
+        standard input from the 'spacespacer ls' sub command.
+        And as so, an output file from the spacesaver ls sub
+        command can be piped into the df subcommand. 
 
         """)
 
     # Display example usage in epilog
     df_epilog = textwrap.dedent("""\
         example:
-          # Assess raw data disk space usage
-          $ spacesaver df /data/CCBR/rawdata/ccbr123/
+          # Assess disk space usage of a directory
+          $ spacesaver df /data/ccbr123/
+
+          # Use output from ls sub command as input
+          $ spacesaver ls /data/ccbr123/ > ls.out
+          $ cat ls.out | spacesaver df /data/ccbr123/
 
         version:
           {}
@@ -187,7 +211,7 @@ def parsed_arguments():
 
     # Positional arguments
     subparser_df.add_argument('DIRECTORY', 
-        # Check if the file exists and if it is readable
+        # Check if the standard input or provided path exists and if it is readable
         type = lambda file: permissions(parser, file, os.R_OK),
         nargs = '+',
         help = argparse.SUPPRESS
