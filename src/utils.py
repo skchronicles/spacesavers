@@ -38,24 +38,45 @@ def md5sum(filename, first_block_only = False, blocksize = 65536):
     return hasher.hexdigest()
 
 
-def permissions(parser, filename, *args, **kwargs):
+def permissions(parser, path, *args, **kwargs):
     """Checks permissions using os.access() to see the user is authorized to access
     a file/directory. Checks for existence, readability, writability and executability via:
     os.F_OK (tests existence), os.R_OK (tests read), os.W_OK (tests write), os.X_OK (tests exec).
     @param parser <argparse.ArgumentParser() object>:
         Argparse parser object
-    @param filename <str>:
-        Name of file to check
-    @return filename <str>:
-        If file exists and user can read from file
+    @param path <str>:
+        Name of path to check
+    @return path <str>:
+        If path exists and user can read from location
     """
-    if not exists(filename):
-        parser.error("File '{}' does not exists! Failed to provide vaild input.".format(filename))
+    if not exists(path):
+        parser.error("Path '{}' does not exists! Failed to provide vaild input.".format(path))
+    if not os.access(path, *args, **kwargs):
+        parser.error("Path '{}' exists, but cannot read path due to permissions!".format(path))
 
-    if not os.access(filename, *args, **kwargs):
-        parser.error("File '{}' exists, but cannot read file due to permissions!".format(filename))
+    return path
 
-    return filename
+
+def standard_input(parser, path, *args, **kwargs):
+    """Checks for standard input when provided or permissions using permissions().
+    @param parser <argparse.ArgumentParser() object>:
+        Argparse parser object
+    @param path <str>:
+        Name of path to check
+    @return path <str>:
+        If path exists and user can read from location
+    """
+    # Checks for standard input
+    if not sys.stdin.isatty():
+        # Standard input provided, set path as an
+        # empty string to prevent searching of '-'
+        path = ''
+        return path
+
+    # Checks for positional arguments as paths
+    path = permissions(parser, path, *args, **kwargs)
+
+    return path
 
 
 def exists(testpath):
