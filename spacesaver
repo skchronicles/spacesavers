@@ -78,6 +78,16 @@ def df(sub_args):
     return
 
 
+def ln(sub_args):
+    """Make hard links between duplicated files 
+    @param sub_args <parser.parse_args() object>:
+        Parsed arguments for run sub-command
+    """
+    print(sub_args)
+    
+    return
+
+
 def parsed_arguments():
     """Parses user-provided command-line arguments. Requires argparse and textwrap
     package. argparse was added to standard lib in python 3.5 and textwrap was added
@@ -217,6 +227,84 @@ def parsed_arguments():
         help = argparse.SUPPRESS
     )
 
+    # Options for the "ln" sub-command
+    # Grouped sub-parser arguments are currently not supported by argparse.
+    # https://bugs.python.org/issue9341
+    # Here is a work around to create more useful help message for named
+    # options that are required! Please note: if a required arg is added the
+    # description below should be updated (i.e. update usage and add new option)
+    required_ln_options = textwrap.dedent("""\
+        usage: 
+          spacesaver ln [-h] DIRECTORY [DIRECTORY ...]
+
+          Make hard links between duplicated files in one
+        or more directories. Hard links point to the same 
+        inode on a device or file system, and do not take 
+        up any appreciable disk space. A significant amount
+        of disk space can be recovered or saved by replacing
+        duplicated files with hard links.
+
+          Hard links come with a few caveats! Please read 
+        through the section below to understand any issues
+        that can a rise when creating multiple hard links:
+          * Hard links cannot be created across different 
+             devices, volumes, or file systems.
+          * Some file systems do not support multiple hard
+             links, such as FAT; however, most modern POSIX
+             complaint operating systems such as linux or 
+             macOS support this feature.
+          * Creating multiple hard links has the effect 
+             of giving one file multiple names. From the
+             file system's perspective, they are all the 
+             same. Each hard link will independently point
+             to the same data on disk. 
+          * If you update one hard link, the changes will 
+             propagate to all the other hard links. This 
+             causes an alias effect which can lead to
+             desired or even catastrophic results.
+
+          Disclaimer: use a healthy amount of caution and 
+        common sense when running this command! Treat it 
+        with the same respect as an rm command. If you do 
+        not fully understand the conditions described above, 
+        you should not run 'spacesaver ln'.
+        
+          Please note that this sub command may take a while
+        to process depending on the shear number or the size
+        of files existing in a given subtree. To assess the 
+        number or size of files that exist in a provided
+        directory, please run the 'spacesaver ls' prior to
+        running 'spacesaver ln'.
+
+        """)
+
+    # Display example usage in epilog
+    ln_epilog = textwrap.dedent("""\
+        example:
+          # Create hard links between duplicate files
+          $ spacesaver ln /data/ccbr123/
+
+        version:
+          {}
+        """.format(__version__))
+
+    # Supressing help message of required args to overcome no sub-parser named groups
+    subparser_ln = subparsers.add_parser('ln',
+        help = 'Make hard links between duplicated files',
+        usage = argparse.SUPPRESS,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description = required_ln_options,
+        epilog = ln_epilog
+    )
+
+    # Positional arguments
+    subparser_ln.add_argument('DIRECTORY', 
+        # Check if the provided path exists and if it is readable
+        type = lambda file: permissions(parser, file, os.R_OK),
+        nargs = '+',
+        help = argparse.SUPPRESS
+    )
+
     # Sanity check for user command line arguments 
     if len(sys.argv) < 2:
         parser.error("""\n\t └── Fatal: failed to provide a valid sub command to spacesaver!
@@ -227,6 +315,7 @@ def parsed_arguments():
     # Define handlers for each sub-parser
     subparser_ls.set_defaults(func = ls)
     subparser_df.set_defaults(func = df)
+    subparser_ln.set_defaults(func = ln)
 
     # Parse command-line args
     args = parser.parse_args()
