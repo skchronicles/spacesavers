@@ -5,12 +5,11 @@
 About:
     This is the main entry for spacesaver.
 USAGE:
-	$ spacesaver <ls|df|ln|optimize> [OPTIONS]
+	$ spacesaver <ls|df|ln> [OPTIONS]
 Example:
     $ spacesaver ls -h
     $ spacesaver df -h
     $ spacesaver ln -h
-    $ spacesaver optimize -h
 """
 
 # Python standard library
@@ -41,7 +40,8 @@ def ls(sub_args):
     """
     # Column names of file listing
     header = ['Inode', 'Permissions', 'Owner', 'Group', 'Bytes', 
-            'Size', 'MDate', 'File', 'NDuplicates', 'DOwners', 'Duplicates']
+            'Size', 'MDate', 'File', 'NDuplicates', 'BDuplicates', 
+            'SDuplicates', 'DOwners', 'Duplicates']
     
     # Display information about duplicate files
     print('\t'.join(header))

@@ -213,7 +213,8 @@ def _ls(path):
         Path to recusively list directory contents
     @yields file_info <list>:
         0=inode, 1=permissions, 2=owner, 3=group, 4=bytes, 5=size, 
-        6=mdate, 7=file, 8=nduplicates, 9=downers, 10=duplicates
+        6=mdate, 7=file, 8=nduplicates, 9=bduplicates, 10=sduplicates, 
+        11=downers, 12=duplicates
     """
     # TODO: Refactor this later, rewrite as a class 
     # using the chain of responsibility design pattern
@@ -267,7 +268,7 @@ def _ls(path):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '0', '', '']) # empty string for duplicates
+            file_info.extend([file, '0', '0', '0 B', '', '']) # empty string for duplicates
             yield file_info
             continue                    # goto the next file
 
@@ -298,7 +299,7 @@ def _ls(path):
             file = files[0]
             file_info = file_stats(file, users)
             if not file_info: continue   # cannot get info on file
-            file_info.extend([file, '0', '', '']) # empty string for duplicates
+            file_info.extend([file, '0', '0', '0 B', '', '']) # empty string for duplicates
             yield file_info
             continue                    # goto the next file
 
@@ -336,7 +337,8 @@ def _ls(path):
         duplicates = "|".join(files[1:])
         file_info = file_stats(file, users)
         if not file_info: continue   # cannot get info on file
-        file_info.extend([file, str(ndups), owners, duplicates])
+        duplicated = ndups * int(file_info[4])
+        file_info.extend([file, str(ndups), str(duplicated), str(readable_size(duplicated)),  owners, duplicates])
         yield file_info
 
 
@@ -366,6 +368,10 @@ def _df(handler, path, split=False):
     # and Score = sum(scoreDupsFiles) / sum(scoreAllFiles)  
     scoreDups, scoreAll = 0.0, 0.0
     for file_listing in handler:
+        # Contents of file listing
+        # 0=inode, 1=permissions, 2=owner, 3=group, 4=bytes, 5=size, 
+        # 6=mdate, 7=file, 8=nduplicates, 9=bduplicates, 10=sduplicates, 
+        # 11=downers, 12=duplicates
         if split:
             # Needed when standard input provided
             file_listing = file_listing.strip().split('\t')
