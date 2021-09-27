@@ -203,6 +203,33 @@ def traversed(path, skip_links = True):
             yield file
 
 
+def scored(age):
+    """Score a file based on its size and scaled age where 
+    AgeScore = nBytesFile * ageScoreFile
+    @param age <float>:
+        Age of file in days
+    @ return score <float>:
+        Age-scaled score of a file
+    """
+    # Default score for files older than 1000 days
+    score = 1.0 # or ~2.7 years
+    s1 = 0.1    # scaling factor 1
+    s2 = 0.8    # scaling factor 2 
+    if age <= float(30*6): 
+        # Score for files less than 6 months old
+        score = age / (30*6) * s1
+    elif age <= float(30*24):
+        # Score for files between 6 and 24 months old 
+        age = age - (30*6)
+        score = s1 + age / (30*(24-6)) * s2
+    elif age <= 1000:
+        # Score for files between 24 and 33 months old
+        age = age - (30*24)
+        score = s1 + s2 + age/ (1000-(30*24)) * (1-(s1 + s2)) 
+    
+    return score
+
+
 def _ls(path):
     """Generator for spacesavers ls which recursively lists
     information about files and directories for a given path. 
@@ -342,7 +369,7 @@ def _ls(path):
         yield file_info
 
 
-def _df(handler, path, split=False):
+def _df(handler, path, split=False, quota=200):
     """Generator for spacesavers df which recursively lists
     information about files and directories for a given path. 
     Any symbolic links or multiple references to the same inode, 
@@ -357,43 +384,92 @@ def _df(handler, path, split=False):
         Path to recusively list directory contents
     @param split <bool>:
         Split iterable contents into a list, set True with standard input
+    @param quota <int:
+        Diskspace quota of a given area 
     @yields df_info <list>:
         0=mount, 1=duplicated, 2=available, 3=%duplicated, 4=score
     """
+    # Calculate a path's age-weighted score.
+    # PathScore is the weighted sum of three
+    # scores pertaining to the average file's 
+    # age and size, the duplication rate of a 
+    # given path, and overall occupancy/footprint
+    # of a path against a defined quota threshold
+    # where PathScore = 100 - (100 * (wAge*AgeScore + wDup*DupScore + wOcc*OccScore))
     duplicated = 0
     available = 0
     score = 0.0
-    # Calculate an age weighted score duplication score
-    # where scorePerFile = age * duplicatedBytes
-    # and Score = sum(scoreDupsFiles) / sum(scoreAllFiles)  
-    scoreDups, scoreAll = 0.0, 0.0
+    # Weights for AgeScore, DupScore, and OccScore
+    # where wAge + wDup + wOcc = 1 
+    wAge = 0.25
+    wDup = 0.45
+    wOcc = 0.35
+    # List to aggregate per file age scores
+    # AgeScore is the average per file age_score
+    age_scores = []
+    age_bytes = []
+
     for file_listing in handler:
         # Contents of file listing
-        # 0=inode, 1=permissions, 2=owner, 3=group, 4=bytes, 5=size, 
-        # 6=mdate, 7=file, 8=nduplicates, 9=bduplicates, 10=sduplicates, 
-        # 11=downers, 12=duplicates
+        # 0=inode, 1=permissions, 2=owner,
+        # 3=group, 4=bytes, 5=size, 6=mdate, 
+        # 7=file, 8=nduplicates, 9=bduplicates,
+        # 10=sduplicates, 11=downers, 12=duplicates
         if split:
-            # Needed when standard input provided
+            # Needed when standard input is provided
+            # to parse _ls() input
             file_listing = file_listing.strip().split('\t')
-        mount = path
+
         # Caculate size of duplicated diskspace and total diskspace
-        filesize = int(file_listing[4])  # size of file in bytes
-        ncopies  = int(file_listing[8])  # number of redundant copies
-        duplicated += filesize * ncopies
-        available += filesize * (ncopies + 1)
+        filesize = int(file_listing[4])         # size of file in bytes
+        ncopies  = int(file_listing[8])         # number of redundant copies
+        duplicated += filesize * ncopies        # duplication size of files
+        available += filesize * (ncopies + 1)   # total size of files
+
         mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
         age = datetime.datetime.today() - mtime
-        age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days 
-        scoreAll += available * age
-        if ncopies >= 1:
-            scoreDups += available * age
-        
-    percent_duplicates = "{}%".format(round((duplicated/ float(available)) * 100, 3))
-    score = str(100 - int(scoreDups / scoreAll) * 100) 
+        age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
+        try:
+            age_scores.append((filesize * scored(age)) / (filesize * age))
+        except ZeroDivisionError:
+            # File size is 0 bytes, add contribution of scaled age
+            age_scores.append(scored(age) / age)
 
-    yield [mount, readable_size(duplicated), readable_size(available), percent_duplicates]
+    # Age Score is the average age score of all files,
+    # where age is scaled via the scored() function.
+    # AgeScore = sum(bytesPerFiles * scored(ageScorePerFile)) / len(Nfiles)
+    AgeScore = sum(age_scores) / len(age_scores) 
+    
+    # DupScore = DuplicatedBytes / TotalBytes
+    DupScore = duplicated / float(available)   # 0 indicates no duplicated files 
+    percent_duplicates = "{}%".format(round(DupScore * 100, 3))
+    
+    # OccScore = totalBytes / (0.05 * quota) if totalBytes is less than 5% of 
+    # quota. If a directory is greater than 5% of the quota, DupScore gets the
+    # worst possible score.
+    OccScore = 1.0
+    quota_bytes = quota * (2**40) # convert TiB to bytes
+    if float(available) <= (0.05*float(quota_bytes)):
+        OccScore = float(available) / (0.05 * quota_bytes)
+    
+    # Calculate the final weighted score of a path
+    Score = str(round(100 - (100 * (wAge*AgeScore) + (wDup*DupScore) + (wOcc*OccScore)), 3))
+
+    yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, Score]
 
 
 if __name__ == '__main__':
-    # Add tests later
-    pass
+    # Test age-scaling function
+    import matplotlib.pyplot as plt
+    file_scores = []
+    x = []
+    for i in range(0,2000):
+        x.append(i)
+        file_scores.append(scored(i))
+
+    # Plot values to viz results
+    fig, ax = plt.subplots()
+    ax.plot(x, file_scores)
+    ax.set(xlabel='Age (Days)', ylabel='Score', title='')
+    ax.grid()
+    fig.savefig("scores.png")
