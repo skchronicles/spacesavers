@@ -22,7 +22,7 @@ import argparse  # potential python3 3rd party package, added in python/3.5
 
 # Local imports  
 from src.shells import bash
-from src.commands import _ls, _df
+from src.commands import _ls, _df, _ln
 from src.utils import (initialize,
     err,
     exists,
@@ -83,8 +83,12 @@ def ln(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
-    print(sub_args)
-    
+    # Display information about duplicate files
+    for path in sub_args.DIRECTORY:
+        if path:
+            for ln_listing in _ln(path):
+                print('\t'.join(ln_listing))
+
     return
 
 

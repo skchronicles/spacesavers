@@ -458,6 +458,94 @@ def _df(handler, path, split=False, quota=200):
     yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, Score]
 
 
+def _ln(path):
+    """Generator for spacesavers ln which recursively replaces
+    duplicated files with hardlink in a given path.
+    Any symbolic links or multiple references to the same inode, 
+    i.e. hard links (only one inode reference is preserved), 
+    are skipped over when finding duplicate files.
+    @param path <str>:
+        Path to recusively list directory contents
+    @yields ln_info <list>:
+        0=target, 1=newlink
+    """
+    # Finds duplicated files and a create a hard link 
+    # if the user running the script has at least two 
+    # duplicated files. If a duplicated file is shared
+    # across users and each user owns only one copy of 
+    # a file, then a hard link is NOT created. Hard links 
+    # will only be created from duplicated files the user
+    # owns! This reduces the chance of introducing any
+    # undesired results.
+    for file_listing in _ls(path):
+        # Contents of file listing
+        # 0=inode, 1=permissions, 2=owner,
+        # 3=group, 4=bytes, 5=size, 6=mdate, 
+        # 7=file, 8=nduplicates, 9=bduplicates,
+        # 10=sduplicates, 11=downers, 12=duplicates
+        
+        # Check for duplicated files
+        nduplicates = int(file_listing[8])
+        if nduplicates == 0:
+            # File is unique
+            # goto next file listing
+            continue
+
+        # Get username of user running the script
+        # to compare against the owner of the old 
+        # copy of the file (master copy)
+        user = str(_name(os.getuid(), 'user'))
+        owner = str(file_listing[2])
+        dup_owners = str(file_listing[11]).split('|')
+        dup_files = str(file_listing[12]).split('|')
+
+        # Safety measure: skip over processes run
+        # as root or duplicate files owned by root
+        if user == 'root' or owner == 'root':
+            continue
+
+        # Saftey measure: remove any duplicate
+        # files owned by root to help sanitize
+        # any erroneous user input. This will
+        # also filter any files from the dup
+        # list that we do not own! Remember 
+        # we only want to create hard links
+        # from files we actually own.
+        for i in range(len(dup_owners)):
+            if str(dup_owners[i]) != user:
+                rm = dup_owners[i].pop(i)
+                rm = dup_files[i].pop(i)
+        
+        # Oldest duplicate file from which
+        # the other hard links will be
+        # created from.
+        mastercopy = str(file_listing[7])
+        # Index of where to start finding
+        # duplicate files. The index is set
+        # to 1 when the user running the script
+        # does not own the master copy AND when
+        # the user owns at least two of the
+        # duplicates. 
+        dindex = 0
+        if user != owner:
+            if len(dup_files) < 2:
+                # User only own one of the
+                # duplicated files, a user
+                # must own at least two
+                # duplicated files to 
+                # create a hardlink
+                continue
+
+            # Master copy is now the next 
+            # oldest file that is owned 
+            # by the user.
+            mastercopy = str(dup_files[0])
+            dindex = 1   # reset duplicate index
+        
+        for dup in dup_files[dindex:]:
+            yield [mastercopy, dup]
+
+
 if __name__ == '__main__':
     # Test age-scaling function
     import matplotlib.pyplot as plt
