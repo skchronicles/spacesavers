@@ -15,7 +15,7 @@ Example:
 # Python standard library
 from __future__ import print_function
 from genericpath import isdir
-import sys, os, textwrap
+import sys, os, textwrap, uuid
 
 # 3rd party imports from pypi
 import argparse  # potential python3 3rd party package, added in python/3.5
@@ -83,12 +83,57 @@ def ln(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
-    # Display information about duplicate files
     for path in sub_args.DIRECTORY:
         if path:
-            for ln_listing in _ln(path):
-                print('\t'.join(ln_listing))
+            for mastercopy, duplicate in _ln(path):
+                # mastercopy is the oldest occurence in a set
+                # of duplciated files. The _ln() function will
+                # not yield tuples if the user does not own the
+                # at least two duplicated files, i.e. the user
+                # will always own mastercopy and duplicate.
+                if exists(mastercopy) and exists(duplicate):
+                    # Keeps track of the status of linking
+                    # step in the deduplication process.
+                    linked = False
+                    dup_uuid = ".spacesaver_ln.{}".format(str(uuid.uuid4()))
+                    dup_tmp = "{}{}".format(duplicate, dup_uuid)
+                    try:
+                        # Rename the dest of the symlink, i.e. 
+                        # the duplicate file prior to creating
+                        # the hard link. This enables a quick
+                        # restoring method if an error occurs
+                        # and avoids filename collisions.
+                        # Example: a.dup.txt -> a.dup.txt.spacesaver_ln.12abc34-ae42nnn
+                        os.rename(duplicate, dup_tmp)
+                        # Create a hardlink from the master
+                        # copy with the original file name 
+                        # of the duplicate file, it is now 
+                        # possible after renaming the dup
+                        # file as there are no collisions
+                        # between the originial duplicate
+                        # filename and the destination
+                        # of the hard link.
+                        os.link(mastercopy, duplicate)
+                        linked = True
+                        # Delete the tmp renamed duplicate 
+                        # file, the newly created hard link
+                        # replaces this file. 
+                        os.remove(dup_tmp)
+                    except Exception as e:
+                        # Restore the originial duplicated file
+                        # from the renamed tmp duplicate file, i.e. 
+                        # Example: a.dup.txt.spacesaver_ln.12abc34-ae42nnn -> a.dup.txt
+                        if linked:
+                            # Remove hard link from master copy 
+                            os.unlink(duplicate)
+                        
+                        # Restore the original duplicate file 
+                        # to its originial state.
+                        os.rename(duplicate, dup_tmp)
 
+                        err('WARNING: Failed to create hard link "{}" error!'.format(
+                        "{} -> {}".format(duplicate, mastercopy), e))
+                        continue   # go to next file
     return
 
 
