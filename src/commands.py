@@ -455,8 +455,12 @@ def _df(handler, path, split=False, quota=200):
     
     # Calculate the final weighted score of a path
     Score = str(round(100 - (100 * ((wAge*AgeScore) + (wDup*DupScore) + (wOcc*OccScore))), 1))
+    # Calculate the individual weighted components
+    AgeC = str(round(100 * (wAge*AgeScore), 1))
+    DupC = str(round(100 * (wDup*DupScore), 1))
+    OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, Score]
+    yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path):
