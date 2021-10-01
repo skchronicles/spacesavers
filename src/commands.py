@@ -10,6 +10,7 @@ from grp import getgrgid  # convert gid to group name
 # Local imports
 from utils import fatal, err, md5sum
 from shells import bash
+from benchmark import timer
 
 
 def normalized(path):
@@ -430,7 +431,7 @@ def _df(handler, path, split=False, quota=200):
         age = datetime.datetime.today() - mtime
         age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
         try:
-            age_scores.append((filesize * scored(age)) / (filesize * age))
+            age_scores.append((filesize * scored(age)) / (filesize))
         except ZeroDivisionError:
             # File size is 0 bytes, add contribution of scaled age
             age_scores.append(scored(age) / age)
@@ -453,7 +454,7 @@ def _df(handler, path, split=False, quota=200):
         OccScore = float(available) / (0.05 * quota_bytes)
     
     # Calculate the final weighted score of a path
-    Score = str(round(100 - (100 * (wAge*AgeScore) + (wDup*DupScore) + (wOcc*OccScore)), 3))
+    Score = str(round(100 - (100 * ((wAge*AgeScore) + (wDup*DupScore) + (wOcc*OccScore))), 1))
 
     yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, Score]
 
