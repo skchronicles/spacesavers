@@ -7,7 +7,7 @@ The `./spacesaver` executable is composed of several inter-related sub commands.
 
 A duplication rate is calculated for each of the provided paths to assess the amount of redudant data in a given location. A weighted score, ranging from 0-100, is also assigned to each provided path where the higher the score, the better!
 
-![RNA-seq quantification pipeline](assets/images/score.png)
+![Scoring_System](images/score.png)
 
 <code>./spacesaver <b>df</b></code> only has *one required input*, a path or set of paths.
 

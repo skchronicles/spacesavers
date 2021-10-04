@@ -7,9 +7,9 @@ Welcome to spacesaver's documentation! This guide is the main source of document
 
 The **`./spacesaver`** command line tool is composed several inter-related sub commands to evaluate and optimize disk space usage across different shared group areas. Each of the available sub commands perform different functions analogous to common unix commands to optimize and report disk space usage: 
 
- * [<code>spacesaver <b>ls</b></code>](): Recusively list directory contents to find duplicated files
- * [<code>spacesaver <b>df</b></code>](): Report disk space usage, duplication rate, and score path
- * [<code>spacesaver <b>ln</b></code>](): Replace duplicated files with hard links to save disk space
+ * [<code>spacesaver <b>ls</b></code>](usage/ls.md): Recusively list directory contents to find duplicated files
+ * [<code>spacesaver <b>df</b></code>](usage/df.md): Report disk space usage, duplication rate, and score path
+ * [<code>spacesaver <b>ln</b></code>](usage/ln.md): Replace duplicated files with hard links to save disk space
 
 Spacesavers can be utilized to recursively find duplicate files, report duplicated disk space usage, or replace duplicated files with hard links. Before getting started, we highly recommend reading through the [usage](usage/ls.md) section of each available sub command.
 
