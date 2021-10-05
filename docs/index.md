@@ -1,7 +1,8 @@
-# Spacesavers  [![GitHub issues](https://img.shields.io/github/issues/CCBR/spacesavers?color=brightgreen)](https://github.com/CCBR/spacesavers/issues)  [![GitHub license](https://img.shields.io/github/license/CCBR/spacesavers)](https://github.com/CCBR/spacesavers/blob/main/LICENSE) 
+# Spacesavers :rocket:   [![docs](https://github.com/CCBR/spacesavers/workflows/docs/badge.svg)](https://github.com/CCBR/spacesavers/actions) [![GitHub issues](https://img.shields.io/github/issues/CCBR/spacesavers?color=brightgreen)](https://github.com/CCBR/spacesavers/issues)  [![GitHub license](https://img.shields.io/github/license/CCBR/spacesavers)](https://github.com/CCBR/spacesavers/blob/main/LICENSE) 
 
-*Find old, duplicated files to optimize disk space usage!*
+> **Disk space**: _the final frontier_. This is the home of the cli, Spacesavers. Its long-term mission: to explore shared file systems, to seek old, duplicated files, and to boldly report disk space usage like no bot before!
 
+---
 ## Overview
 Welcome to spacesaver's documentation! This guide is the main source of documentation for users that are getting started with [spacesaver](https://github.com/CCBR/spacesavers). 
 
@@ -15,6 +16,6 @@ Spacesavers can be utilized to recursively find duplicate files, report duplicat
 
 For more information about issues or trouble-shooting a problem, please checkout our [FAQ](faq/questions.md) prior to [opening an issue on Github](https://github.com/CCBR/spacesaver/issues).
 
-## Contribute
+## Contribute 
 
-This site is a living document, created for and by members like you. Spacesavers is maintained by the members of CCBR and is improved by continous feedback! We encourage you to contribute new content and make improvements to existing content via pull request to our [GitHub repository](https://github.com/CCBR/spacesavers).
+This site is a living document, created for and by members like you. Spacesavers is maintained by the members of CCBR and is improved by continous feedback! We encourage you to contribute new content and make improvements to existing content via pull request to our [GitHub repository :octicons-heart-fill-24:{ .heart }](https://github.com/CCBR/spacesavers).

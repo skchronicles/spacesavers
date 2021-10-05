@@ -9,6 +9,10 @@ repo_name: CCBR/spacesavers
 repo_url: https://github.com/CCBR/spacesavers
 edit_uri: https://github.com/CCBR/spacesavers/edit/master/docs/
 
+# Extra
+extra_css:
+  - css/extra.css
+
 # Copyright
 copyright: Copyright &copy; 2021 CCBR
 
@@ -95,10 +99,10 @@ markdown_extensions:
 # Page Tree
 nav:
   - About: index.md
-  - Usage: 
-    - ls: usage/ls.md
-    - df: usage/df.md
-    - ln: usage/ln.md
+  - Commands: 
+    - spacesaver ls: usage/ls.md
+    - spacesaver df: usage/df.md
+    - spacesaver ln: usage/ln.md
   - FAQ:
     - General Questions: faq/questions.md
   - License: license.md
