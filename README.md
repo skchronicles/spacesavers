@@ -1,4 +1,4 @@
-# Spacesavers  [![docs](https://github.com/CCBR/spacesavers/workflows/docs/badge.svg)](https://github.com/CCBR/spacesavers/actions)  [![GitHub issues](https://img.shields.io/github/issues/CCBR/spacesavers?color=brightgreen)](https://github.com/CCBR/spacesavers/issues)  [![GitHub license](https://img.shields.io/github/license/CCBR/spacesavers)](https://github.com/CCBR/spacesavers/blob/main/LICENSE)  
+# Spacesavers :rocket: [![docs](https://github.com/CCBR/spacesavers/workflows/docs/badge.svg)](https://github.com/CCBR/spacesavers/actions)  [![GitHub issues](https://img.shields.io/github/issues/CCBR/spacesavers?color=brightgreen)](https://github.com/CCBR/spacesavers/issues)  [![GitHub license](https://img.shields.io/github/license/CCBR/spacesavers)](https://github.com/CCBR/spacesavers/blob/main/LICENSE)  
 
 > **Disk space**: _the final frontier_. This is the home of the cli, Spacesavers. Its long-term mission: to explore shared file systems, to seek duplicated files, and to boldly report disk space usage like no bot before!
 
