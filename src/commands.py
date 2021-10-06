@@ -73,7 +73,7 @@ def _name(uid, uid_type):
         # will use the uid or gid in listings with ls.
         # Example:
         # -rw-rw---- 1 39452 CCBR 24931746426 Feb  5  2020 ./rawdata/file.bam
-        name = uid 
+        name = str(uid)  # convert potential int to string 
     return name
 
 
@@ -371,7 +371,7 @@ def _ls(path):
 
 
 def _df(handler, path, split=False, quota=200):
-    """Generator for spacesavers df which recursively lists
+    """Function for spacesavers df which recursively lists
     information about files and directories for a given path. 
     Any symbolic links or multiple references to the same inode, 
     i.e. hard links (only one inode reference is preserved), 
@@ -439,10 +439,24 @@ def _df(handler, path, split=False, quota=200):
     # Age Score is the average age score of all files,
     # where age is scaled via the scored() function.
     # AgeScore = sum(bytesPerFiles * scored(ageScorePerFile)) / len(Nfiles)
-    AgeScore = sum(age_scores) / len(age_scores) 
-    
+    try:
+        AgeScore = sum(age_scores) / len(age_scores) 
+    except ZeroDivisionError:
+        # Edge case where there are no files in a directory.
+        # Meaning, the directory is empty or only contains 
+        # symlinks.
+        return [path, readable_size(duplicated), readable_size(available), '0.0%', '0.0', '0.0', '0.0', '100.0']
+
     # DupScore = DuplicatedBytes / TotalBytes
-    DupScore = duplicated / float(available)   # 0 indicates no duplicated files 
+    try:
+        DupScore = duplicated / float(available)   # 0 indicates no duplicated files 
+    except ZeroDivisionError:
+        # Edge case where a directory is composed of a
+        # set of empty files. Meaning, all the encountered
+        # files are 0 bytes in size. Penalize with the worst
+        # DupScore, so it gets flagged for deletion later.
+        DupScore = 1.0
+
     percent_duplicates = "{}%".format(round(DupScore * 100, 3))
     
     # OccScore = totalBytes / (0.05 * quota) if totalBytes is less than 5% of 
@@ -460,7 +474,7 @@ def _df(handler, path, split=False, quota=200):
     DupC = str(round(100 * (wDup*DupScore), 1))
     OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    yield [path, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
+    return [path, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path):

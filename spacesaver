@@ -65,15 +65,16 @@ def df(sub_args):
     if not sys.stdin.isatty():
         header = next(sys.stdin)
         # Read from standard input
-        for df_listing in _df(sys.stdin, sub_args.DIRECTORY[0], True):
-            print('\t'.join(df_listing))
-            return
+        df_listing = _df(sys.stdin, sub_args.DIRECTORY[0], True)
+        print('\t'.join(df_listing))
+        
+        return
 
     # Display information about duplicate files
     for path in sub_args.DIRECTORY:
         if path:
-            for df_listing in _df(_ls(path), path):
-                print('\t'.join(df_listing))
+            df_listing = _df(_ls(path), path)
+            print('\t'.join(df_listing))
     
     return
 
