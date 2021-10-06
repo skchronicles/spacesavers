@@ -136,3 +136,7 @@ dmypy.json
 # Other 
 *.tmp
 *.bak
+*.swarm
+
+# Ignore logfiles 
+logs/
