@@ -6,7 +6,7 @@
 
 The **`./spacesaver`** command line tool is composed several inter-related sub commands to evaluate and optimize disk space usage across different shared group areas. Each of the available sub commands perform different functions analogous to common unix commands to optimize and report disk space usage: 
 
- * [<code>spacesaver <b>ls</b></code>](https://ccbr.github.io/spacesavers/usage/ls/): Recusively list directory contents to find duplicated files
+ * [<code>spacesaver <b>ls</b></code>](https://ccbr.github.io/spacesavers/usage/ls/): Recursively list files and any encountered duplicates
  * [<code>spacesaver <b>df</b></code>](https://ccbr.github.io/spacesavers/usage/df/): Report disk space usage, duplication rate, and score path
  * [<code>spacesaver <b>ln</b></code>](https://ccbr.github.io/spacesavers/usage/ln/): Replace duplicated files with hard links to save disk space
 
