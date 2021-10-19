@@ -84,9 +84,10 @@ def ln(sub_args):
     @param sub_args <parser.parse_args() object>:
         Parsed arguments for run sub-command
     """
+    minsize = int(sub_args.m)
     for path in sub_args.DIRECTORY:
         if path:
-            for mastercopy, duplicate in _ln(path):
+            for mastercopy, duplicate in _ln(path, minsize):
                 # mastercopy is the oldest occurence in a set
                 # of duplciated files. The _ln() function will
                 # not yield tuples if the user does not own the
@@ -285,7 +286,7 @@ def parsed_arguments():
     # description below should be updated (i.e. update usage and add new option)
     required_ln_options = textwrap.dedent("""\
         usage: 
-          spacesaver ln [-h] DIRECTORY [DIRECTORY ...]
+          spacesaver ln [-h] [-m] DIRECTORY [DIRECTORY ...]
 
           Make hard links between duplicated files in one
         or more directories. Hard links point to the same 
@@ -317,7 +318,10 @@ def parsed_arguments():
         common sense when running this command! Treat it 
         with the same respect as an rm command. If you do 
         not fully understand the conditions described above, 
-        you should not run 'spacesaver ln'.
+        you should not run 'spacesaver ln'. The '-m' option
+        can be used to set a minimum file size in bytes. If
+        a file does not exceed this minimum file size, then a
+        hard link will not be created!
         
           Please note that this sub command may take a while
         to process depending on the shear number or the size
@@ -342,7 +346,7 @@ def parsed_arguments():
     subparser_ln = subparsers.add_parser('ln',
         help = 'Make hard links between duplicated files',
         usage = argparse.SUPPRESS,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=argparse.RawTextHelpFormatter,
         description = required_ln_options,
         epilog = ln_epilog
     )
@@ -353,6 +357,22 @@ def parsed_arguments():
         type = lambda file: permissions(parser, file, os.R_OK),
         nargs = '+',
         help = argparse.SUPPRESS
+    )
+
+    # Options 
+    # Minimum file size to create hard link
+    subparser_ln.add_argument('-m',
+      metavar='MINSIZE',
+      type = int,
+      required = False,
+      default = 10485760,
+      help = textwrap.dedent("""\
+      Minimum size of a file in bytes.
+      To create a hard link, the size 
+      of a the duplicated file must 
+      exceed this value.
+      Default: 10485760
+      """)
     )
 
     # Sanity check for user command line arguments 

@@ -477,14 +477,22 @@ def _df(handler, path, split=False, quota=200):
     return [path, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
-def _ln(path):
+def _ln(path, minimum_size=10485760):
     """Generator for spacesavers ln which recursively replaces
     duplicated files with hardlink in a given path.
     Any symbolic links or multiple references to the same inode, 
     i.e. hard links (only one inode reference is preserved), 
-    are skipped over when finding duplicate files.
+    are skipped over when finding duplicate files. Files not
+    meeting the "minimum_size" will not be yielded.
     @param path <str>:
         Path to recusively list directory contents
+    @param minimum_size <int>:
+        Threshold for minimum size of a file in bytes. A file
+        must be greater than or equal to this threshold to be 
+        replaced with a hardlink. Files less than this size will
+        be passed over, helps reduce the chance of unintentionally
+        introducing an alias effect with small files. This option
+        can be overridden through a command-line option.
     @yields ln_info <list>:
         0=target, 1=newlink
     """
@@ -503,10 +511,12 @@ def _ln(path):
         # 7=file, 8=nduplicates, 9=bduplicates,
         # 10=sduplicates, 11=downers, 12=duplicates
         
-        # Check for duplicated files
+        # Check for duplicated files and see if file
+        # meets threshold for minimum size
         nduplicates = int(file_listing[8])
-        if nduplicates == 0:
-            # File is unique
+        fsize = int(file_listing[4])
+        if nduplicates == 0 or fsize <= minimum_size:
+            # File is unique or does not meet minimum size
             # goto next file listing
             continue
 
