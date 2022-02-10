@@ -222,7 +222,7 @@ function main(){
     # finishes.
     last=$(sbatch --cpus-per-task=2 \
        --mem=32g \
-       --time=72:00:00 \
+       --time=10-00:00:00 \
        -J "space_batch" \
        --mail-type=BEGIN,END,FAIL \
        --dependency=afterany:${dependency} \
