@@ -53,10 +53,10 @@ def readable_size(sbytes):
 def _name(uid, uid_type):
     """Handler to name() to get the name of a given id. If a uid/gid of 
     an inactive account is provided the original uid or gid is returned.
+    @params uid <int>:
+        A uid/gid of a file or path, etc.
     @param uid_type <int>:
         Type of identifer, either 'user' or 'group'.
-    @params uid_records <dict>:
-        Lookup of previously encountered uid/gid.
     @return name <str>:
         Returns the name of the user_id or group_id
     """
@@ -409,6 +409,9 @@ def _df(handler, path, split=False, quota=200):
     # AgeScore is the average per file age_score
     age_scores = []
     age_bytes = []
+    
+    # Owner of the provided path
+    owner = _name(os.stat(path).st_uid, 'user')
 
     for file_listing in handler:
         # Contents of file listing
@@ -474,7 +477,7 @@ def _df(handler, path, split=False, quota=200):
     DupC = str(round(100 * (wDup*DupScore), 1))
     OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    return [path, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
+    return [path, owner, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path, minimum_size=10485760):
