@@ -186,14 +186,14 @@ function main(){
 
   # Parses user provided command-line arguments
   parser "${@}" # Remove first item of list
- 
+
   # Required arguments
   inputdir="$(abspath "${Arguments[i]}")"
 
   # Optional Arguments
   outdir="${Arguments[o]}"
-  outdir="$(readlink -f "${Arguments[o]}")"
   [ ! -d "$outdir" ] && mkdir -p "$outdir"
+  outdir="$(readlink -f "${Arguments[o]}")"
   dryrun="${Arguments[n]:-false}"
   ext_dep="${Arguments[e]:-}"
   if [[ -n "${ext_dep}" ]]; then 
