@@ -412,8 +412,8 @@ def _df(handler, path, split=False, quota=200):
     
     # Owner of the provided path
     owner = _name(os.stat(path).st_uid, 'user')
-    available_per_user = dict()
-    available_per_user[owner] = 0
+    filesize_per_user = dict()
+    filesize_per_user[owner] = 0
 
     for file_listing in handler:
         # Contents of file listing
@@ -432,9 +432,9 @@ def _df(handler, path, split=False, quota=200):
         duplicated += filesize * ncopies        # duplication size of files
         available += filesize * (ncopies + 1)   # total size of files
         fowner = file_listing[2]                # file owner
-        if not fowner in available_per_user:
-            available_per_user[fowner] = 0
-        available_per_user[fowner] += available
+        if not fowner in filesize_per_user:
+            filesize_per_user[fowner] = 0
+        filesize_per_user[fowner] += filesize * (ncopies + 1)
 
         mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
         age = datetime.datetime.today() - mtime
@@ -446,11 +446,15 @@ def _df(handler, path, split=False, quota=200):
             age_scores.append(scored(age) / age)
         
     # sort list by poweruser
-    available_per_user = dict(sorted(available_per_user.items(), key=lambda item: item[1], reverse=True))
+    filesize_per_user = dict(sorted(filesize_per_user.items(), key=lambda item: item[1], reverse=True))
     
     fowner_str_list = []
-    for fowner,fused in available_per_user.items():
-        fowner_str_list.append("{}%".format(round(fused / float(available) * 100, 3)))
+    for fowner,fused in filesize_per_user.items():
+        try:
+            frac = fused / float(available)
+        except ZeroDivisionError:
+            frac = 0
+        fowner_str_list.append("{1}[{2}%]".format(fowner,round(frac * 100, 3)))
 
     # create string for pipe separated file owners in the folder
     fowner_str = "|".join(fowner_str_list)
