@@ -454,7 +454,7 @@ def _df(handler, path, split=False, quota=200):
             frac = fused / float(available)
         except ZeroDivisionError:
             frac = 0
-        fowner_str_list.append("{1}[{2}%]".format(fowner,round(frac * 100, 3)))
+        fowner_str_list.append("{0}[{1}%]".format(fowner,round(frac * 100, 3)))
 
     # create string for pipe separated file owners in the folder
     fowner_str = "|".join(fowner_str_list)
