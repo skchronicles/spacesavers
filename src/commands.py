@@ -477,7 +477,7 @@ def _df(handler, path, split=False, quota=200):
     DupC = str(round(100 * (wDup*DupScore), 1))
     OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    return [path, owner, readable_size(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
+    return [path, owner, readable_size(duplicated), str(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path, minimum_size=10485760):
