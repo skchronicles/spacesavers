@@ -412,6 +412,8 @@ def _df(handler, path, split=False, quota=200):
     
     # Owner of the provided path
     owner = _name(os.stat(path).st_uid, 'user')
+    available_per_user = dict()
+    available_per_user[owner] = 0
 
     for file_listing in handler:
         # Contents of file listing
@@ -429,6 +431,10 @@ def _df(handler, path, split=False, quota=200):
         ncopies  = int(file_listing[8])         # number of redundant copies
         duplicated += filesize * ncopies        # duplication size of files
         available += filesize * (ncopies + 1)   # total size of files
+        fowner = file_listing[2]                # file owner
+        if not fowner in available_per_user:
+            available_per_user[fowner] = 0
+        available_per_user[fowner] += available
 
         mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
         age = datetime.datetime.today() - mtime
@@ -438,6 +444,16 @@ def _df(handler, path, split=False, quota=200):
         except ZeroDivisionError:
             # File size is 0 bytes, add contribution of scaled age
             age_scores.append(scored(age) / age)
+        
+    # sort list by poweruser
+    available_per_user = dict(sorted(available_per_user.items(), key=lambda item: item[1], reverse=True))
+    
+    fowner_str_list = []
+    for fowner,fused in available_per_user.items():
+        fowner_str_list.append("{}%".format(round(fused / float(available) * 100, 3)))
+
+    # create string for pipe separated file owners in the folder
+    fowner_str = "|".join(fowner_str_list)
 
     # Age Score is the average age score of all files,
     # where age is scaled via the scored() function.
@@ -477,7 +493,7 @@ def _df(handler, path, split=False, quota=200):
     DupC = str(round(100 * (wDup*DupScore), 1))
     OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    return [path, owner, readable_size(duplicated), str(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
+    return [path, owner, fowner_str, readable_size(duplicated), str(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path, minimum_size=10485760):
