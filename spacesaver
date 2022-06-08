@@ -58,7 +58,7 @@ def df(sub_args):
         Parsed arguments for run sub-command
     """
     # Column names of file listing
-    header = ['Path', 'Owner', 'Duplicated', 'Used', '%Duplicated', 'wAgeS', 'wDupS', 'wOccS', 'Score']
+    header = ['Path', 'Owner', 'Duplicated', 'Duplicated_Bytes', 'Used', '%Duplicated', 'wAgeS', 'wDupS', 'wOccS', 'Score']
     print('\t'.join(header))
 
     # Check for standard input 
