@@ -55,18 +55,19 @@ Here is a description of each column's output:
 |          | Column Name        | Example Value                         |
 |----------|--------------------|---------------------------------------|
 | *1*      | Path               | /data/CCBR/rawdata/ccbr123/           |
-| *2*      | Owner              | Guido van Rossum                      |
-| *3*      | Duplicated         | 177.316 GiB                           |
-| *4*      | Duplicated_Bytes   | 190391226983                          |
-| *5*      | Used               | 1.456 TiB                             |
-| ***6***  | ***%Duplicated***  | 0.0%                                  |
-| *7*      | wAgeS              | 12.4                                  |
-| *8*      | wDupS              | 0.0                                   |
-| *9*      | wOccS              | 5.1                                   |
-| ***10*** | ***Score***        | 82.5                                  |
+| *2*      | FolderOwner        | Guido van Rossum                      |
+| *3*      | FileCoOwners       | finneyr[96.297%]\|maggiec[3.703%]     |
+| *4*      | Duplicated         | 177.316 GiB                           |
+| *5*      | Duplicated_Bytes   | 190391226983                          |
+| *6*      | Used               | 1.456 TiB                             |
+| ***7***  | ***%Duplicated***  | 0.0%                                  |
+| *8*      | wAgeS              | 12.4                                  |
+| *9*      | wDupS              | 0.0                                   |
+| *10*     | wOccS              | 5.1                                   |
+| ***11*** | ***Score***        | 82.5                                  |
 
 
-***Please note:*** The output is seperated or delimited by tabs: `\t`. *%Duplciated* is reported as the `DuplicatedBytes/TotalBytes`. A *Score* is also assigned to a given path where the higher the score, the better. A *Score* of 0 would indicate that all the files are older than 2.7 years AND all the files are duplicates AND the files make up more than 10% of our shared group area. *wAgeS*, *wDupS*, and *wOccS* are the weighted indiviudal components that make up the *Score* listed in column 10.
+***Please note:*** The output is seperated or delimited by tabs: `\t`. *%Duplciated* is reported as the `DuplicatedBytes/TotalBytes`. A *Score* is also assigned to a given path where the higher the score, the better. A *Score* of 0 would indicate that all the files are older than 2.7 years AND all the files are duplicates AND the files make up more than 10% of our shared group area. *wAgeS*, *wDupS*, and *wOccS* are the weighted indiviudal components that make up the *Score* listed in column 11.
 
 ## Example
 
