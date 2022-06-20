@@ -140,6 +140,9 @@ dmypy.json
 
 # Ignore logfiles 
 logs/
+log_*/
+**/.koparde*
+**/slurm-*
 
 # Ignore swarm files
 *.e

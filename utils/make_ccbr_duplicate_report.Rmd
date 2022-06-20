@@ -1,0 +1,186 @@
+---
+title: "CCBR data mount duplication report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+params:
+  directory: "/home/kopardevn/CCBR/dev/spacesavers/logs"
+  dups_file: "large_duplicated.tsv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(DT)
+```
+
+```{r copy_params_to_bash_env, echo=FALSE, message=FALSE}
+
+# this block will copy all params variable into bash env variable
+# which will be accessible in the bash block
+# eg. params$directory will be accessible as $directory in bash block
+
+for (key in names(params)) {
+  do.call('Sys.setenv', params[key])
+}
+large_dup_file_path = file.path(params$directory,params$dups_file)
+Sys.setenv(DUPFILE = large_dup_file_path)
+```
+
+```{bash echo=FALSE}
+n=1
+for f in `ls ${directory}/*_ls.tsv`
+do
+if [[ "$n" == "1" ]]
+then
+head -n1 $f
+fi
+n=$((n+1))
+tail -n +2 $f
+done | awk -F"\t" '{if (NF==13) {print}}' > ${directory}/all_lss.tsv
+```
+
+
+```{bash echo=FALSE}
+n=1
+for f in `ls ${directory}/*_df.tsv`
+do
+if [[ "$n" == "1" ]]
+then
+head -n1 $f
+fi
+n=$((n+1))
+tail -n +2 $f
+done | awk -F"\t" '{if (NF==11) {print}}' > ${directory}/all_df.tsv
+```
+
+```{r load_ls,include=TRUE,echo=FALSE}
+ls_filepath=file.path(params$directory,"all_lss.tsv")
+df = read.csv(ls_filepath,
+                header = TRUE,
+                check.names = FALSE,
+                sep = "\t",
+                comment.char = "#")
+df = df[df$Bytes != 0,]
+df = df[!is.na(df$Bytes),]
+df = df[!is.na(df$BDuplicates),]
+
+# select 100MB or larger duplicates and write them out
+large_dup_df = df[df$BDuplicates>100*1024*1024,]
+write.table(large_dup_df,
+            file = large_dup_file_path,
+            quote = FALSE,
+            row.names = FALSE,
+            sep="\t")
+
+```
+
+```{r load_df,include=TRUE,echo=FALSE}
+df_filepath=file.path(params$directory,"all_df.tsv")
+df_df = read.csv(df_filepath,
+                header = TRUE,
+                check.names = FALSE,
+                sep = "\t",
+                comment.char = "#")
+
+df_df = df_df[!is.na(df_df$Duplicated_Bytes),]
+df_df = df_df[!is.na(df_df$Score),]
+df_df = df_df[df_df$Duplicated_Bytes > 100*1024*1024,]
+df_df$DupGiB = df_df$Duplicated_Bytes/1024/1024/1024
+df_df = df_df[order(df_df$DupGiB,decreasing=TRUE),]
+rownames(df_df) = NULL
+
+```
+
+## Background
+
+[Spacesavers](https://github.com/CCBR/spacesavers) is used to assess the duplications levels in the `/data/CCBR/projects` and `/data/CCBR/rawdata` subfolders individually. A swarm job runs `spacesaver ls` command for each these subfolders thereby generating a [TSV file](https://ccbr.github.io/spacesavers/usage/ls/#output) for each subfolder. These results are then:
+
+- concatenated across all subfolders
+- filtered for duplicates-only
+- filtered for duplication of 100 MiB or greater, i.e., ignore smaller duplicates as they do not make a big impact towards overall diskspace
+
+> **NOTE**: Ideally, we would prefer to run `spacesavers` on the entire `/data/CCBR` mount, but this is not possible as it will take long time to run (days or weeks). `spacesavers` does optimize calculation of md5sum of larger files but the md5sum calculations are NOT performed in parallel. Hence, we _pseudo_-parallelize the process by running multiple instances of `spacesavers` as a swarm job. **Disclaimer**: Inter-project duplicates will be missed by our swarm job.
+
+## Size Per User
+
+```{r sizeperuser, include=TRUE, echo=FALSE}
+df %>% group_by(Owner) %>% summarise(Bytes = sum(Bytes)) %>% as.data.frame -> df_bytes_per_user
+df_bytes_per_user$GiB = df_bytes_per_user$Bytes/1024/1024/1024
+ggplot(df_bytes_per_user,aes(x=reorder(Owner, GiB),y=GiB)) + 
+  geom_bar(stat = 'identity',aes(fill=Owner)) + 
+  coord_flip() + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  ylab("TotalSize(GiB)") + 
+  xlab("User")
+```
+
+
+## Duplication Size
+
+```{r dupsize, include=TRUE, echo=FALSE}
+df %>% group_by(Owner) %>% summarise(BDuplicates = sum(BDuplicates)) %>% as.data.frame -> df_dup_bytes_per_user
+df_dup_bytes_per_user$GiB = df_dup_bytes_per_user$BDuplicates/1024/1024/1024
+ggplot(df_dup_bytes_per_user,aes(x=reorder(Owner, GiB),y=GiB)) + 
+  geom_bar(stat = 'identity',aes(fill=Owner)) + 
+  coord_flip() + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  ylab("DuplicationSize(GiB)") + 
+  xlab("User")
+```
+
+## Top 20 most duplicated folders
+
+```{r mostdup, include=TRUE, echo=FALSE}
+ggplot(head(df_df,20),aes(x=reorder(Path,DupGiB),y=DupGiB)) + 
+  geom_bar(stat = 'identity',aes(fill=Path)) + 
+  coord_flip() + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  ylab("Duplication(GiB)") + 
+  xlab("Folder")
+```
+
+## Per folder duplication levels
+
+```{r duptable,echo=FALSE,include=TRUE}
+DT::datatable(df_df,
+              class = 'cell-border stripe',
+              rownames = FALSE)
+```
+
+## Score distribution
+
+```{r score,include=TRUE,echo=FALSE}
+ggplot(df_df,aes(x=Score)) + 
+  geom_density() +
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  ylab("Density") + 
+  xlab("Score")
+
+```
+
+## Top 20 lowest score folders
+
+```{r lowestscore, include=TRUE, echo=FALSE}
+df_df = df_df[order(df_df$Score),]
+path_level = df_df$Path
+ggplot(head(df_df,20),aes(x=factor(Path,level=rev(path_level)),y=Score)) + 
+  geom_bar(stat = 'identity',aes(fill=Path)) + 
+  coord_flip() + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  ylab("Duplication(GiB)") + 
+  xlab("Folder")
+```
+
+## Your duplicates
+
+If you wish to see a list of your duplicate files, please run this on helix:
+```{bash echo=FALSE,include=TRUE}
+echo "bash /data/CCBR/dev/spacesavers/logs/show_my_dups.sh $DUPFILE | less"
+```
+
