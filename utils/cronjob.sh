@@ -90,5 +90,6 @@ rm -rf *_df.tsv
 rm -rf *_df.err
 rm -rf all_lss.tsv all_dfs.tsv
 rm -rf swarm*
+rm -f do_*
 fi
 

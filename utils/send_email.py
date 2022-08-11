@@ -15,6 +15,7 @@ def _get_ccbr_email_list():
     """
     cmd = "grep ^CCBR: /etc/group | awk -F\":\" '{print $NF}'"
     proc = subprocess.run(cmd,shell=True,capture_output=True,text=True)
+    exitcode = proc.returncode
     if str(exitcode) == "0":
         userlist = proc.stdout
         userlist = userlist.strip().split(",")
