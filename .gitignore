@@ -139,8 +139,8 @@ dmypy.json
 *.swarm
 
 # Ignore logfiles 
-logs/
-log_*/
+**/logs/
+**/log_*/
 **/.koparde*
 **/slurm-*
 
