@@ -40,7 +40,7 @@ def ls(sub_args):
     """
     # Column names of file listing
     header = ['Inode', 'Permissions', 'Owner', 'Group', 'Bytes', 
-            'Size', 'MDate', 'File', 'NDuplicates', 'BDuplicates', 
+            'Size', 'MDate', 'Age', 'File', 'NDuplicates', 'BDuplicates', 
             'SDuplicates', 'DOwners', 'Duplicates']
     
     # Display information about duplicate files

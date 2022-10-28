@@ -118,7 +118,7 @@ def file_stats(file, users):
         Lookup of previously encountered uid/gid.
     @returns info <list>:
         List containing detailed information about a file:
-            0=inode, 1=permissions, 3=owner, 4=group, 5=bsize, 6=hsize, 7=mdate
+            0=inode, 1=permissions, 2=owner, 3=group, 4=bsize, 5=hsize, 6=mdate, 7=age
     """
     # Use os.stat() in the standard library to
     # get detailed information about the file: 
@@ -141,11 +141,15 @@ def file_stats(file, users):
     owner = name(stat_res.st_uid, 'user', users)
     group = name(stat_res.st_gid, 'group', users)
     mdate = datetime.datetime.fromtimestamp(stat_res.st_mtime).strftime('%Y-%m-%d-%H:%M')
+    mtime = datetime.datetime.strptime(mdate, '%Y-%m-%d-%H:%M')
+    age = datetime.datetime.today() - mtime
+    age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
+    age = int(math.ceil(age))
     bsize = stat_res.st_size
     hsize = readable_size(bsize)
     # Format results before printing to standard 
     # output and convert all values to strings 
-    info = [inode, permissions, owner, group, bsize, hsize, mdate]
+    info = [inode, permissions, owner, group, bsize, hsize, mdate, age]
     info = [str(val) for val in info]
 
     return info
@@ -242,7 +246,7 @@ def _ls(path):
     @yields file_info <list>:
         0=inode, 1=permissions, 2=owner, 3=group, 4=bytes, 5=size, 
         6=mdate, 7=file, 8=nduplicates, 9=bduplicates, 10=sduplicates, 
-        11=downers, 12=duplicates
+        11=downers, 12=duplicates, 13=age
     """
     # TODO: Refactor this later, rewrite as a class 
     # using the chain of responsibility design pattern
@@ -366,6 +370,9 @@ def _ls(path):
         file_info = file_stats(file, users)
         if not file_info: continue   # cannot get info on file
         duplicated = ndups * int(file_info[4])
+        # mtime = datetime.datetime.strptime(file_info[6], '%Y-%m-%d-%H:%M')
+        # age = datetime.datetime.today() - mtime
+        # age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
         file_info.extend([file, str(ndups), str(duplicated), str(readable_size(duplicated)),  owners, duplicates])
         yield file_info
 
@@ -418,9 +425,9 @@ def _df(handler, path, split=False, quota=200):
     for file_listing in handler:
         # Contents of file listing
         # 0=inode, 1=permissions, 2=owner,
-        # 3=group, 4=bytes, 5=size, 6=mdate, 
-        # 7=file, 8=nduplicates, 9=bduplicates,
-        # 10=sduplicates, 11=downers, 12=duplicates
+        # 3=group, 4=bytes, 5=size, 6=mdate, 7=age,
+        # 8=file, 9=nduplicates, 10=bduplicates,
+        # 11=sduplicates, 12=downers, 13=duplicates
         if split:
             # Needed when standard input is provided
             # to parse _ls() input
@@ -428,7 +435,7 @@ def _df(handler, path, split=False, quota=200):
 
         # Caculate size of duplicated diskspace and total diskspace
         filesize = int(file_listing[4])         # size of file in bytes
-        ncopies  = int(file_listing[8])         # number of redundant copies
+        ncopies  = int(file_listing[9])         # number of redundant copies
         duplicated += filesize * ncopies        # duplication size of files
         available += filesize * (ncopies + 1)   # total size of files
         fowner = file_listing[2]                # file owner
@@ -436,9 +443,10 @@ def _df(handler, path, split=False, quota=200):
             filesize_per_user[fowner] = 0
         filesize_per_user[fowner] += filesize * (ncopies + 1)
 
-        mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
-        age = datetime.datetime.today() - mtime
-        age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
+        # mtime = datetime.datetime.strptime(file_listing[6], '%Y-%m-%d-%H:%M')
+        # age = datetime.datetime.today() - mtime
+        # age = round(age.total_seconds() / 86400.0, 4) # convert seconds to days
+        age = int(float(file_listing[7]))
         try:
             age_scores.append((filesize * scored(age)) / (filesize))
         except ZeroDivisionError:
