@@ -3,8 +3,10 @@ title: "CCBR data mount duplication report"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 params:
-  directory: "/home/kopardevn/CCBR/dev/spacesavers/logs"
-  dups_file: "large_duplicated.tsv"
+  bytes_per_user: "/home/kopardevn/CCBR/dev/spacesavers/logs/bytes_per_user.v2.tsv"
+  alldfstsv: "/home/kopardevn/CCBR/dev/spacesavers/logs/all_dfs.tsv"
+  alllsstsv: "/home/kopardevn/CCBR/dev/spacesavers/logs/all_lss.tsv"
+  dupfile: "/home/kopardevn/CCBR/dev/spacesavers/logs/large_duplicates.tsv"
 ---
 
 ```{r setup, include=FALSE}
@@ -15,69 +17,73 @@ library(DT)
 ```
 
 ```{r copy_params_to_bash_env, echo=FALSE, message=FALSE}
-
 # this block will copy all params variable into bash env variable
 # which will be accessible in the bash block
 # eg. params$directory will be accessible as $directory in bash block
-
 for (key in names(params)) {
-  do.call('Sys.setenv', params[key])
+ do.call('Sys.setenv', params[key])
 }
-large_dup_file_path = file.path(params$directory,params$dups_file)
-Sys.setenv(DUPFILE = large_dup_file_path)
+#large_dup_file_path = file.path(params$directory,params$dups_file)
+#Sys.setenv(DUPFILE = large_dup_file_path)
 ```
 
-```{bash echo=FALSE}
-n=1
-for f in `ls ${directory}/*_ls.tsv`
-do
-if [[ "$n" == "1" ]]
-then
-head -n1 $f
-fi
-n=$((n+1))
-tail -n +2 $f
-done | awk -F"\t" '{if (NF==13) {print}}' > ${directory}/all_lss.tsv
-```
+<!-- ```{bash echo=FALSE} -->
+<!-- n=1 -->
+<!-- for f in `ls ${directory}/*_ls.tsv` -->
+<!-- do -->
+<!-- if [[ "$n" == "1" ]] -->
+<!-- then -->
+<!-- head -n1 $f -->
+<!-- fi -->
+<!-- n=$((n+1)) -->
+<!-- tail -n +2 $f -->
+<!-- done | awk -F"\t" '{if (NF==13) {print}}' > ${directory}/all_lss.tsv -->
+<!-- ${pythonscript} ${directory}/all_lss.tsv ${directory}/bytes_per_user.tsv ${directory}/${dups_file} -->
+<!-- ``` -->
 
 
-```{bash echo=FALSE}
-n=1
-for f in `ls ${directory}/*_df.tsv`
-do
-if [[ "$n" == "1" ]]
-then
-head -n1 $f
-fi
-n=$((n+1))
-tail -n +2 $f
-done | awk -F"\t" '{if (NF==11) {print}}' > ${directory}/all_df.tsv
-```
 
-```{r load_ls,include=TRUE,echo=FALSE}
-ls_filepath=file.path(params$directory,"all_lss.tsv")
-df = read.csv(ls_filepath,
-                header = TRUE,
-                check.names = FALSE,
-                sep = "\t",
-                comment.char = "#")
-df = df[df$Bytes != 0,]
-df = df[!is.na(df$Bytes),]
-df = df[!is.na(df$BDuplicates),]
 
-# select 100MB or larger duplicates and write them out
-large_dup_df = df[df$BDuplicates>100*1024*1024,]
-write.table(large_dup_df,
-            file = large_dup_file_path,
-            quote = FALSE,
-            row.names = FALSE,
-            sep="\t")
 
-```
+
+<!-- ```{bash echo=FALSE} -->
+<!-- n=1 -->
+<!-- for f in `ls ${directory}/*_df.tsv` -->
+<!-- do -->
+<!-- if [[ "$n" == "1" ]] -->
+<!-- then -->
+<!-- head -n1 $f -->
+<!-- fi -->
+<!-- n=$((n+1)) -->
+<!-- tail -n +2 $f -->
+<!-- done | awk -F"\t" '{if (NF==11) {print}}' > ${directory}/all_df.tsv -->
+<!-- ``` -->
+
+<!-- # ```{r load_ls,include=TRUE,echo=FALSE} -->
+<!-- # ls_filepath=file.path(params$directory,"all_lss.tsv") -->
+<!-- # df = read.csv(ls_filepath, -->
+<!-- #                 header = TRUE, -->
+<!-- #                 check.names = FALSE, -->
+<!-- #                 sep = "\t", -->
+<!-- #                 comment.char = "#") -->
+<!-- # df = df[df$Bytes != 0,] -->
+<!-- # df = df[!is.na(df$Bytes),] -->
+<!-- # df = df[!is.na(df$BDuplicates),] -->
+<!-- #  -->
+<!-- # # select 100MB or larger duplicates and write them out -->
+<!-- # large_dup_df = df[df$BDuplicates>100*1024*1024,] -->
+<!-- # write.table(large_dup_df, -->
+<!-- #             file = large_dup_file_path, -->
+<!-- #             quote = FALSE, -->
+<!-- #             row.names = FALSE, -->
+<!-- #             sep="\t") -->
+<!-- #  -->
+<!-- # ``` -->
 
 ```{r load_df,include=TRUE,echo=FALSE}
-df_filepath=file.path(params$directory,"all_df.tsv")
-df_df = read.csv(df_filepath,
+# df_filepath=file.path(params$directory,"all_df.tsv")
+
+df_df = read.csv(params$alldfstsv,
                 header = TRUE,
                 check.names = FALSE,
                 sep = "\t",
@@ -104,11 +110,20 @@ rownames(df_df) = NULL
 
 ## Size Per User
 
-```{r sizeperuser, include=TRUE, echo=FALSE}
-df %>% group_by(Owner) %>% summarise(Bytes = sum(Bytes)) %>% as.data.frame -> df_bytes_per_user
-df_bytes_per_user$GiB = df_bytes_per_user$Bytes/1024/1024/1024
-ggplot(df_bytes_per_user,aes(x=reorder(Owner, GiB),y=GiB)) + 
-  geom_bar(stat = 'identity',aes(fill=Owner)) + 
+```{r size, include=TRUE, echo=FALSE}
+
+df_bytes_per_user = read.csv(params$bytes_per_user,
+                header = TRUE,
+                check.names = FALSE,
+                sep = "\t",
+                comment.char = "#")
+df_bytes_per_user$Total_Bytes_GiB = df_bytes_per_user$Total_Bytes/1024/1024/1024
+df_bytes_per_user$Duplicate_Bytes_GiB = df_bytes_per_user$Duplicate_Bytes/1024/1024/1024
+
+# df %>% group_by(Owner) %>% summarise(BDuplicates = sum(BDuplicates)) %>% as.data.frame -> df_dup_bytes_per_user
+# df_dup_bytes_per_user$GiB = df_dup_bytes_per_user$BDuplicates/1024/1024/1024
+ggplot(df_bytes_per_user,aes(x=reorder(User, Total_Bytes_GiB),y=Total_Bytes_GiB)) + 
+  geom_bar(stat = 'identity',aes(fill=User)) + 
   coord_flip() + 
   theme_bw() + 
   theme(legend.position = "none") + 
@@ -120,14 +135,12 @@ ggplot(df_bytes_per_user,aes(x=reorder(Owner, GiB),y=GiB)) +
 ## Duplication Size
 
 ```{r dupsize, include=TRUE, echo=FALSE}
-df %>% group_by(Owner) %>% summarise(BDuplicates = sum(BDuplicates)) %>% as.data.frame -> df_dup_bytes_per_user
-df_dup_bytes_per_user$GiB = df_dup_bytes_per_user$BDuplicates/1024/1024/1024
-ggplot(df_dup_bytes_per_user,aes(x=reorder(Owner, GiB),y=GiB)) + 
-  geom_bar(stat = 'identity',aes(fill=Owner)) + 
+ggplot(df_bytes_per_user,aes(x=reorder(User, Duplicate_Bytes_GiB),y=Duplicate_Bytes_GiB)) + 
+  geom_bar(stat = 'identity',aes(fill=User)) + 
   coord_flip() + 
   theme_bw() + 
   theme(legend.position = "none") + 
-  ylab("DuplicationSize(GiB)") + 
+  ylab("Duplicates(GiB)") + 
   xlab("User")
 ```
 
@@ -181,7 +194,6 @@ ggplot(head(df_df,20),aes(x=factor(Path,level=rev(path_level)),y=Score)) +
 
 If you wish to see a list of your duplicate files, please run this on helix:
 ```{bash echo=FALSE,include=TRUE}
-echo "bash /data/CCBR/dev/spacesavers/logs/show_my_dups.sh $DUPFILE | less"
+echo "bash /data/CCBR/dev/spacesavers/logs/show_my_dups.sh ${dupfile} | less"
 ```
-
 
