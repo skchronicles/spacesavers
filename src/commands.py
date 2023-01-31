@@ -476,7 +476,7 @@ def _df(handler, path, split=False, quota=200):
         # Edge case where there are no files in a directory.
         # Meaning, the directory is empty or only contains 
         # symlinks.
-        return [path, readable_size(duplicated), readable_size(available), '0.0%', '0.0', '0.0', '0.0', '100.0']
+        return [path, readable_size(duplicated), str(duplicated),  readable_size(available), str(available), '0.0%', '0.0', '0.0', '0.0', '100.0']
 
     # DupScore = DuplicatedBytes / TotalBytes
     try:
@@ -505,7 +505,7 @@ def _df(handler, path, split=False, quota=200):
     DupC = str(round(100 * (wDup*DupScore), 1))
     OccC = str(round(100 * (wOcc*OccScore), 1))
 
-    return [path, owner, fowner_str, readable_size(duplicated), str(duplicated), readable_size(available), percent_duplicates, AgeC, DupC, OccC, Score]
+    return [path, owner, fowner_str, readable_size(duplicated), str(duplicated), readable_size(available), str(available), percent_duplicates, AgeC, DupC, OccC, Score]
 
 
 def _ln(path, minimum_size=10485760):
