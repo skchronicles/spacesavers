@@ -8,10 +8,13 @@ params:
 ---
 
 ```{r setup, include=FALSE}
+# load the required R libraries
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(dplyr)
 library(DT)
+# set large cutoff threshold to 100MB
+large_threshold=100*1024*1024
 ```
 
 ```{r copy_params_to_bash_env, echo=FALSE, message=FALSE}
@@ -28,6 +31,11 @@ Sys.setenv(DUPFILE = large_dup_file_path)
 ```
 
 ```{bash echo=FALSE}
+# Run bash inside R markdown code block
+# "spacesaver ls" generates a _ls.tsv file for each folder under
+# /data/CCBR/rawdata
+# /data/CCBR/projects
+# we concatenate all those files to "all_lss.tsv"
 n=1
 for f in `ls ${directory}/*_ls.tsv`
 do
@@ -42,6 +50,11 @@ done | awk -F"\t" '{if (NF==13) {print}}' > ${directory}/all_lss.tsv
 
 
 ```{bash echo=FALSE}
+# Run bash inside R markdown code block
+# "spacesaver ls" generates a _df.tsv file for each folder under
+# /data/CCBR/rawdata
+# /data/CCBR/projects
+# we concatenate all those files to "all_dfs.tsv"
 n=1
 for f in `ls ${directory}/*_df.tsv`
 do
@@ -51,10 +64,11 @@ head -n1 $f
 fi
 n=$((n+1))
 tail -n +2 $f
-done | awk -F"\t" '{if (NF==11) {print}}' > ${directory}/all_df.tsv
+done | awk -F"\t" '{if (NF==11) {print}}' > ${directory}/all_dfs.tsv
 ```
 
 ```{r load_ls,include=TRUE,echo=FALSE}
+# filter all_lss.tsv for larger(>100MB) files only
 ls_filepath=file.path(params$directory,"all_lss.tsv")
 df = read.csv(ls_filepath,
                 header = TRUE,
@@ -66,7 +80,7 @@ df = df[!is.na(df$Bytes),]
 df = df[!is.na(df$BDuplicates),]
 
 # select 100MB or larger duplicates and write them out
-large_dup_df = df[df$BDuplicates>100*1024*1024,]
+large_dup_df = df[df$BDuplicates > large_threshold,]
 write.table(large_dup_df,
             file = large_dup_file_path,
             quote = FALSE,
@@ -76,7 +90,8 @@ write.table(large_dup_df,
 ```
 
 ```{r load_df,include=TRUE,echo=FALSE}
-df_filepath=file.path(params$directory,"all_df.tsv")
+# load in data from all_dfs.tsv
+df_filepath=file.path(params$directory,"all_dfs.tsv")
 df_df = read.csv(df_filepath,
                 header = TRUE,
                 check.names = FALSE,
@@ -85,7 +100,7 @@ df_df = read.csv(df_filepath,
 
 df_df = df_df[!is.na(df_df$Duplicated_Bytes),]
 df_df = df_df[!is.na(df_df$Score),]
-df_df = df_df[df_df$Duplicated_Bytes > 100*1024*1024,]
+df_df = df_df[df_df$Duplicated_Bytes > large_threshold,]
 df_df$DupGiB = df_df$Duplicated_Bytes/1024/1024/1024
 df_df = df_df[order(df_df$DupGiB,decreasing=TRUE),]
 rownames(df_df) = NULL
@@ -183,5 +198,4 @@ If you wish to see a list of your duplicate files, please run this on helix:
 ```{bash echo=FALSE,include=TRUE}
 echo "bash /data/CCBR/dev/spacesavers/logs/show_my_dups.sh $DUPFILE | less"
 ```
-
 

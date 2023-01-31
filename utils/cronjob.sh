@@ -1,4 +1,23 @@
 #!/bin/bash
+# This cronjob script does the following steps:
+# 1. spacesavers ls
+# 	"spacesavers ls" is run in parallel using a swarm job for each folder under
+#   a. /data/CCBR/rawdata and
+#   b. /data/CCBR/projects
+#   This is the most time consuming part of the entire exercise and need to spawn
+#   biowulf jobs
+# 2. spacesavers df
+#   Utilizing the outputs from the previous step, "spacesavers df" command is used
+#   on each of the "spacesavers ls" outputs and then those subsequent outputs are
+#   concatenated. Earlier this job was also submitted to the sbatch queue but since
+#   it running fairly quickly, it is now run directly (under the master job).
+# 3. create report
+#	R script is run to ingest the concatenated output from the previous steps to
+#   generate a HTML report. The report is then placed at a location where it can be
+#   picked up by the cronjob on helix.
+# 4. cleanup
+# 	Delete unnecessary/intermediate files and reduce the digital footprint on the
+# 	/data/CCBR/dev/spacesavers/log_${dt} folders
 
 set -exo pipefail
 export PATH=$PATH:/usr/local/bin
