@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name="spacesavers"
-#SBATCH --mem=10g
+#SBATCH --mem=40g
 #SBATCH --partition="ccr,norm"
 #SBATCH --time=96:00:00
 #SBATCH --cpus-per-task=2

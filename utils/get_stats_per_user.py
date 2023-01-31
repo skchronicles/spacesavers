@@ -6,7 +6,7 @@ from pathlib import Path
 import argparse
 
 parser = argparse.ArgumentParser(description='Get per user statistics')
-parser.add_argument('-i','--ln', help='input file: output file from "spacesaver ln" command', required=True)
+parser.add_argument('-i','--ls', help='input file: output file from "spacesaver ls" command', required=True)
 parser.add_argument('-p','--peruserbytes', help='output file: name of per user bytes output file', required=True)
 parser.add_argument('-l','--largedups', help='output file: list of large duplicates per user', required=True)
 parser.add_argument('-d','--dist', help='output file: age distribution of files owned by each user', required=True)
@@ -19,7 +19,7 @@ pd.set_option('display.max_colwidth', None)  # or 199
 #infile=sys.argv[1]
 #infile="/data/CCBR/dev/spacesavers/logs/all_lss.tsv"
 #outfile="bytes_per_user.v2.tsv"
-infile=args['ln']
+infile=args['ls']
 outfile=args['peruserbytes']
 large_dup_path=args['largedups']
 outfile2=args['dist']
