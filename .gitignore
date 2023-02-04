@@ -147,3 +147,6 @@ dmypy.json
 # Ignore swarm files
 *.e
 *.o
+
+# R files
+.Rhistory
